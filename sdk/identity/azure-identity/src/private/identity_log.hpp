@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// SPDX-License-Identifier: MIT
 
 #pragma once
 
@@ -7,23 +7,23 @@
 
 namespace Azure { namespace Identity { namespace _detail {
 
-    class IdentityLog final {
-    public:
-        using Level = Core::Diagnostics::Logger::Level;
+  class IdentityLog final {
+  public:
+    using Level = Core::Diagnostics::Logger::Level;
 
-        static void Write(Level level, std::string const& message)
-        {
-            Core::Diagnostics::_internal::Log::Write(level, "Identity: " + message);
-        }
+    static void Write(Level level, std::string const& message)
+    {
+      Core::Diagnostics::_internal::Log::Write(level, "Identity: " + message);
+    }
 
-        static bool ShouldWrite(Level level)
-        {
-            return Core::Diagnostics::_internal::Log::ShouldWrite(level);
-        }
+    static bool ShouldWrite(Level level)
+    {
+      return Core::Diagnostics::_internal::Log::ShouldWrite(level);
+    }
 
-    private:
-        IdentityLog() = delete;
-        ~IdentityLog() = delete;
-    };
+  private:
+    IdentityLog() = delete;
+    ~IdentityLog() = delete;
+  };
 
 }}} // namespace Azure::Identity::_detail

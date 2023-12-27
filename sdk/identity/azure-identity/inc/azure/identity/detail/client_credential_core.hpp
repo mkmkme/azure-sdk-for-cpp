@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// SPDX-License-Identifier: MIT
 
 #pragma once
 
@@ -26,50 +26,50 @@ namespace Azure { namespace Identity { namespace _detail {
   public:
     static std::string GetAuthorityHost()
     {
-       const std::string envAuthHost
+      const std::string envAuthHost
           = Core::_internal::Environment::GetVariable(AzureAuthorityHostEnvVarName);
 
-       return envAuthHost.empty() ? AadGlobalAuthority : envAuthHost;
+      return envAuthHost.empty() ? AadGlobalAuthority : envAuthHost;
     }
 
     static std::string GetTenantId()
     {
-                    return Core::_internal::Environment::GetVariable(AzureTenantIdEnvVarName);
-                }
+      return Core::_internal::Environment::GetVariable(AzureTenantIdEnvVarName);
+    }
 
-                static std::string GetClientId()
-                {
-                    return Core::_internal::Environment::GetVariable(AzureClientIdEnvVarName);
-                }
+    static std::string GetClientId()
+    {
+      return Core::_internal::Environment::GetVariable(AzureClientIdEnvVarName);
+    }
 
-                static std::string GetFederatedTokenFile()
-                {
-                    return Core::_internal::Environment::GetVariable(AzureFederatedTokenFileEnvVarName);
-                }
-            };
+    static std::string GetFederatedTokenFile()
+    {
+      return Core::_internal::Environment::GetVariable(AzureFederatedTokenFileEnvVarName);
+    }
+  };
 
-            class ClientCredentialCore final {
-                std::vector<std::string> m_additionallyAllowedTenants;
-                Core::Url m_authorityHost;
-                std::string m_tenantId;
+  class ClientCredentialCore final {
+    std::vector<std::string> m_additionallyAllowedTenants;
+    Core::Url m_authorityHost;
+    std::string m_tenantId;
 
-            public:
-                explicit ClientCredentialCore(
-                        std::string tenantId,
-                        std::string const& authorityHost,
-                        std::vector<std::string> additionallyAllowedTenants);
+  public:
+    explicit ClientCredentialCore(
+        std::string tenantId,
+        std::string const& authorityHost,
+        std::vector<std::string> additionallyAllowedTenants);
 
-                Core::Url GetRequestUrl(std::string const& tenantId) const;
+    Core::Url GetRequestUrl(std::string const& tenantId) const;
 
-                std::string GetScopesString(
-                        std::string const& tenantId,
-                        decltype(Core::Credentials::TokenRequestContext::Scopes) const& scopes) const;
+    std::string GetScopesString(
+        std::string const& tenantId,
+        decltype(Core::Credentials::TokenRequestContext::Scopes) const& scopes) const;
 
-                std::string const& GetTenantId() const { return m_tenantId; }
+    std::string const& GetTenantId() const { return m_tenantId; }
 
-                std::vector<std::string> const& GetAdditionallyAllowedTenants() const
-                {
-                    return m_additionallyAllowedTenants;
-                }
-            };
-        }}} // namespace Azure::Identity::_detail
+    std::vector<std::string> const& GetAdditionallyAllowedTenants() const
+    {
+      return m_additionallyAllowedTenants;
+    }
+  };
+}}} // namespace Azure::Identity::_detail
