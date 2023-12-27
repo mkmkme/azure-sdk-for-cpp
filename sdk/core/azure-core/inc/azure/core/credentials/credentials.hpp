@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// SPDX-License-Identifier: MIT
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 /**
  * @file
@@ -48,12 +48,27 @@ namespace Azure { namespace Core { namespace Credentials {
      *
      */
     std::vector<std::string> Scopes;
+
+    /**
+     * @brief Minimum token expiration suggestion.
+     *
+     */
+    DateTime::duration MinimumExpiration = std::chrono::minutes(2);
+
+    /**
+     * @brief Tenant ID.
+     *
+     */
+    std::string TenantId;
   };
 
   /**
    * @brief A base type of credential that uses Azure::Core::AccessToken to authenticate requests.
    */
   class TokenCredential {
+  private:
+    std::string m_credentialName;
+
   public:
     /**
      * @brief Gets an authentication token.
@@ -61,24 +76,46 @@ namespace Azure { namespace Core { namespace Credentials {
      * @param tokenRequestContext A context to get the token in.
      * @param context A context to control the request lifetime.
      *
+     * @return Authentication token.
+     *
      * @throw Azure::Core::Credentials::AuthenticationException Authentication error occurred.
      */
-    virtual AccessToken GetToken(
-        TokenRequestContext const& tokenRequestContext,
-        Context const& context) const = 0;
+  virtual AccessToken GetToken(
+      TokenRequestContext const& tokenRequestContext,
+      Context const& context) const = 0;
 
-    /**
-     * @brief Destructs `%TokenCredential`.
-     *
-     */
-    virtual ~TokenCredential() = default;
+  /**
+   * @brief Gets the name of the credential.
+   *
+   */
+  std::string const& GetCredentialName() const { return m_credentialName; }
+
+  /**
+   * @brief Destructs `%TokenCredential`.
+   *
+   */
+  virtual ~TokenCredential() = default;
 
   protected:
-    /**
-     * @brief Constructs a default instance of `%TokenCredential`.
-     *
-     */
-    TokenCredential() {}
+   /**
+    * @brief Constructs an instance of `%TokenCredential`.
+    *
+    * @param credentialName Name of the credential for diagnostic messages.
+    */
+   TokenCredential(std::string const& credentialName)
+        : m_credentialName(credentialName.empty() ? "Custom Credential" : credentialName)
+   {
+   }
+
+   /**
+    * @brief Constructs a default instance of `%TokenCredential`.
+    *
+    * @deprecated Use the constructor with parameter.
+    */
+   [[deprecated("Use the constructor with parameter.")]] TokenCredential()
+       : TokenCredential(std::string{})
+   {
+   }
 
   private:
     /**
@@ -98,15 +135,15 @@ namespace Azure { namespace Core { namespace Credentials {
    * @brief An exception that gets thrown when an authentication error occurs.
    */
   class AuthenticationException final : public std::exception {
-    std::string m_whatArg;
+    std::string m_what;
 
   public:
     /**
      * @brief Constructs `%AuthenticationException` with a message string.
      *
-     * @param whatArg The explanatory string.
+     * @param what The explanatory string.
      */
-    explicit AuthenticationException(std::string whatArg) : m_whatArg(std::move(whatArg)) {}
+    explicit AuthenticationException(std::string what) : m_what(std::move(what)) {}
 
     /**
      * Gets the explanatory string.
@@ -115,6 +152,6 @@ namespace Azure { namespace Core { namespace Credentials {
      *
      * @return C string with explanatory information.
      */
-    char const* what() const noexcept override { return m_whatArg.c_str(); }
+    char const* what() const noexcept override { return m_what.c_str(); }
   };
 }}} // namespace Azure::Core::Credentials
