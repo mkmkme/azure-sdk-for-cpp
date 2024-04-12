@@ -1326,6 +1326,16 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   }
   CURLcode result;
 
+  if (options.IPResolve != CURL_IPRESOLVE_WHATEVER)
+  {
+    if (!SetLibcurlOption(newHandle.get(), CURLOPT_IPRESOLVE, options.IPResolve, &result))
+    {
+      throw Azure::Core::Http::TransportException(
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
+          + std::string(curl_easy_strerror(result)));
+    }
+  }
+
   // Libcurl setup before open connection (url, connect_only, timeout)
   if (!SetLibcurlOption(
           newHandle.get(), CURLOPT_URL, request.GetUrl().GetAbsoluteUrl().data(), &result))
