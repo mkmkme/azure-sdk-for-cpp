@@ -426,12 +426,6 @@ namespace Azure { namespace Storage { namespace _internal {
     bool readingEmptyTag = false;
   };
 
-  XmlReader::XmlReader(XmlReader&& other) noexcept { *this = std::move(other); }
-  XmlReader& XmlReader::operator=(XmlReader&& other) noexcept
-  {
-    m_context = std::move(other.m_context);
-    return *this;
-  }
 
   XmlReader::XmlReader(const char* data, size_t length)
   {
