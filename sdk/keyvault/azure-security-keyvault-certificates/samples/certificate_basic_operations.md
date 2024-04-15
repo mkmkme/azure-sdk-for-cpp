@@ -45,13 +45,18 @@ auto response = certificateClient.StartCreateCertificate(certificateName, option
 
 ## Getting a Certificate
 
-Call PollUntilDone to poll the status of the creation. Once the opperation has completed it will return the certificate.
+Call PollUntilDone to poll the status of the creation. Once the opperation has completed we will call GetCertificate
 
 ```cpp Snippet:CertificateSample1Get
 // wait for complete to get the certificate
-certificate = response.PollUntilDone(defaultWait).Value;
-
+auto pollResponse = response.PollUntilDone(defaultWait).Value;
+// check the status of the poll response
+if (!pollResponse.Error && pollResponse.Status.Value() == "completed")
+{
+// get the certificate
+certificate = certificateClient.GetCertificate(certificateName).Value;
 std::cout << "Created certificate with policy. Certificate name : " << certificate.Name();
+}
 ```
 
 ## Updating certificate properties
@@ -91,3 +96,7 @@ If the Azure Key Vault is soft delete-enabled and you want to permanently delete
 auto result = response.PollUntilDone(defaultWait);
 certificateClient.PurgeDeletedCertificate(certificateName);
 ```
+## Source
+
+To see the full example source, see:
+[Source Code](https://github.com/Azure/azure-sdk-for-cpp/tree/main/sdk/keyvault/azure-security-keyvault-certificates/test/samples/certificate-basic-operations)

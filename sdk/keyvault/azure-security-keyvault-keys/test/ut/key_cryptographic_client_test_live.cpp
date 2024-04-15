@@ -1,17 +1,13 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#if defined(_MSC_VER)
-#define _CRT_SECURE_NO_WARNINGS
-#endif
-
 #include "gtest/gtest.h"
 
 #include <azure/core/internal/cryptography/sha_hash.hpp>
 
 #include "key_client_base_test.hpp"
 
-#include <azure/keyvault/keyvault_keys.hpp>
+#include <azure/keyvault/keys.hpp>
 
 #include <string>
 #include <vector>

@@ -158,6 +158,19 @@ namespace Azure { namespace Storage { namespace Blobs {
         const Azure::Core::Context& context = Azure::Core::Context()) const;
 
     /**
+     * @brief Creates a new Block Blob where the contents of the blob are read from a given URL.
+     *
+     * @param sourceUri Specifies the URL of the source blob.
+     * @param options Optional parameters to execute this function.
+     * @param context Context for cancelling long running operations.
+     * @return A UploadBlockBlobFromUriResult describing the state of the updated block blob.
+     */
+    Azure::Response<Models::UploadBlockBlobFromUriResult> UploadFromUri(
+        const std::string& sourceUri,
+        const UploadBlockBlobFromUriOptions& options = UploadBlockBlobFromUriOptions(),
+        const Azure::Core::Context& context = Azure::Core::Context()) const;
+
+    /**
      * @brief Creates a new block as part of a block blob's staging area to be eventually
      * committed via the CommitBlockList operation.
      *
@@ -226,6 +239,19 @@ namespace Azure { namespace Storage { namespace Blobs {
      */
     Azure::Response<Models::GetBlockListResult> GetBlockList(
         const GetBlockListOptions& options = GetBlockListOptions(),
+        const Azure::Core::Context& context = Azure::Core::Context()) const;
+
+    /**
+     * @brief Returns the result of a query against the blob.
+     *
+     * @param querySqlExpression The query expression in SQL.
+     * @param options Optional parameters to execute this function.
+     * @param context Context for cancelling long running operations.
+     * @return A QueryBlobResult describing the query result.
+     */
+    Azure::Response<Models::QueryBlobResult> Query(
+        const std::string& querySqlExpression,
+        const QueryBlobOptions& options = QueryBlobOptions(),
         const Azure::Core::Context& context = Azure::Core::Context()) const;
 
   private:

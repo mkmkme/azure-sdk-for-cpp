@@ -11,6 +11,8 @@
 namespace Azure { namespace Storage { namespace Sas {
 
   namespace {
+    constexpr static const char* SasVersion = Blobs::_detail::ApiVersion;
+
     std::string BlobSasResourceToString(BlobSasResource resource)
     {
       if (resource == BlobSasResource::BlobContainer)
@@ -65,6 +67,11 @@ namespace Azure { namespace Storage { namespace Sas {
     {
       Permissions += "x";
     }
+    if ((permissions & BlobContainerSasPermissions::PermanentDelete)
+        == BlobContainerSasPermissions::PermanentDelete)
+    {
+      Permissions += "y";
+    }
     if ((permissions & BlobContainerSasPermissions::List) == BlobContainerSasPermissions::List)
     {
       Permissions += "l";
@@ -72,6 +79,11 @@ namespace Azure { namespace Storage { namespace Sas {
     if ((permissions & BlobContainerSasPermissions::Tags) == BlobContainerSasPermissions::Tags)
     {
       Permissions += "t";
+    }
+    if ((permissions & BlobContainerSasPermissions::SetImmutabilityPolicy)
+        == BlobContainerSasPermissions::SetImmutabilityPolicy)
+    {
+      Permissions += "i";
     }
   }
 
@@ -103,9 +115,18 @@ namespace Azure { namespace Storage { namespace Sas {
     {
       Permissions += "x";
     }
+    if ((permissions & BlobSasPermissions::PermanentDelete) == BlobSasPermissions::PermanentDelete)
+    {
+      Permissions += "y";
+    }
     if ((permissions & BlobSasPermissions::Tags) == BlobSasPermissions::Tags)
     {
       Permissions += "t";
+    }
+    if ((permissions & BlobSasPermissions::SetImmutabilityPolicy)
+        == BlobSasPermissions::SetImmutabilityPolicy)
+    {
+      Permissions += "i";
     }
   }
 
@@ -141,8 +162,8 @@ namespace Azure { namespace Storage { namespace Sas {
 
     std::string stringToSign = Permissions + "\n" + startsOnStr + "\n" + expiresOnStr + "\n"
         + canonicalName + "\n" + Identifier + "\n" + (IPRange.HasValue() ? IPRange.Value() : "")
-        + "\n" + protocol + "\n" + _internal::DefaultSasVersion + "\n" + resource + "\n"
-        + snapshotVersion + "\n" + CacheControl + "\n" + ContentDisposition + "\n" + ContentEncoding
+        + "\n" + protocol + "\n" + SasVersion + "\n" + resource + "\n" + snapshotVersion + "\n"
+        + EncryptionScope + "\n" + CacheControl + "\n" + ContentDisposition + "\n" + ContentEncoding
         + "\n" + ContentLanguage + "\n" + ContentType;
 
     std::string signature = Azure::Core::Convert::Base64Encode(_internal::HmacSha256(
@@ -150,8 +171,7 @@ namespace Azure { namespace Storage { namespace Sas {
         Azure::Core::Convert::Base64Decode(credential.GetAccountKey())));
 
     Azure::Core::Url builder;
-    builder.AppendQueryParameter(
-        "sv", _internal::UrlEncodeQueryParameter(_internal::DefaultSasVersion));
+    builder.AppendQueryParameter("sv", _internal::UrlEncodeQueryParameter(SasVersion));
     builder.AppendQueryParameter("spr", _internal::UrlEncodeQueryParameter(protocol));
     if (!startsOnStr.empty())
     {
@@ -194,6 +214,10 @@ namespace Azure { namespace Storage { namespace Sas {
     if (!ContentType.empty())
     {
       builder.AppendQueryParameter("rsct", _internal::UrlEncodeQueryParameter(ContentType));
+    }
+    if (!EncryptionScope.empty())
+    {
+      builder.AppendQueryParameter("ses", _internal::UrlEncodeQueryParameter(EncryptionScope));
     }
 
     return builder.GetAbsoluteUrl();
@@ -238,7 +262,7 @@ namespace Azure { namespace Storage { namespace Sas {
         + userDelegationKey.SignedTenantId + "\n" + signedStartsOnStr + "\n" + signedExpiresOnStr
         + "\n" + userDelegationKey.SignedService + "\n" + userDelegationKey.SignedVersion
         + "\n\n\n\n" + (IPRange.HasValue() ? IPRange.Value() : "") + "\n" + protocol + "\n"
-        + _internal::DefaultSasVersion + "\n" + resource + "\n" + snapshotVersion + "\n"
+        + SasVersion + "\n" + resource + "\n" + snapshotVersion + "\n" + EncryptionScope + "\n"
         + CacheControl + "\n" + ContentDisposition + "\n" + ContentEncoding + "\n" + ContentLanguage
         + "\n" + ContentType;
 
@@ -247,8 +271,7 @@ namespace Azure { namespace Storage { namespace Sas {
         Azure::Core::Convert::Base64Decode(userDelegationKey.Value)));
 
     Azure::Core::Url builder;
-    builder.AppendQueryParameter(
-        "sv", _internal::UrlEncodeQueryParameter(_internal::DefaultSasVersion));
+    builder.AppendQueryParameter("sv", _internal::UrlEncodeQueryParameter(SasVersion));
     builder.AppendQueryParameter("sr", _internal::UrlEncodeQueryParameter(resource));
     if (!startsOnStr.empty())
     {
@@ -290,6 +313,10 @@ namespace Azure { namespace Storage { namespace Sas {
     if (!ContentType.empty())
     {
       builder.AppendQueryParameter("rsct", _internal::UrlEncodeQueryParameter(ContentType));
+    }
+    if (!EncryptionScope.empty())
+    {
+      builder.AppendQueryParameter("ses", _internal::UrlEncodeQueryParameter(EncryptionScope));
     }
     builder.AppendQueryParameter("sig", _internal::UrlEncodeQueryParameter(signature));
 

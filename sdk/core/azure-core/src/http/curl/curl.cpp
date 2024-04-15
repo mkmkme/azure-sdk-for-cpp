@@ -1,12 +1,22 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+#include "azure/core/platform.hpp"
+
+#if defined(AZ_PLATFORM_WINDOWS)
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+#if !defined(NOMINMAX)
+#define NOMINMAX
+#endif
+#endif
+
 #include "azure/core/http/curl_transport.hpp"
 #include "azure/core/http/http.hpp"
 #include "azure/core/http/policies/policy.hpp"
 #include "azure/core/http/transport.hpp"
 #include "azure/core/internal/diagnostics/log.hpp"
-#include "azure/core/platform.hpp"
 
 // Private include
 #include "curl_connection_pool_private.hpp"
@@ -17,16 +27,11 @@
 #include <poll.h> // for poll()
 #include <sys/socket.h> // for socket shutdown
 #elif defined(AZ_PLATFORM_WINDOWS)
-#if !defined(WIN32_LEAN_AND_MEAN)
-#define WIN32_LEAN_AND_MEAN
-#endif
-#if !defined(NOMINMAX)
-#define NOMINMAX
-#endif
 #include <winsock2.h> // for WSAPoll();
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <string>
 #include <thread>
 
@@ -94,25 +99,35 @@ int pollSocketUntilEventOrTimeout(
   // we use 1 as arg.
 
   // Cancelation is possible by calling poll() with small time intervals instead of using the
-  // requested timeout. Default interval for calling poll() is 1 sec whenever arg timeout is
-  // greater than 1 sec. Otherwise the interval is set to timeout
-  long interval = 1000; // 1 second
-  if (timeout < interval)
-  {
-    interval = timeout;
-  }
+  // requested timeout. The polling interval is 1 second.
+  static constexpr std::chrono::milliseconds pollInterval(1000); // 1 second
   int result = 0;
-  for (long counter = 0; counter < timeout && result == 0; counter = counter + interval)
+  auto now = std::chrono::steady_clock::now();
+  auto deadline = now + std::chrono::milliseconds(timeout);
+  while (now < deadline)
   {
     // check cancelation
     context.ThrowIfCancelled();
+    int pollTimeoutMs = static_cast<int>(
+        std::min(
+            pollInterval, std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now))
+            .count());
 #if defined(AZ_PLATFORM_POSIX)
-    result = poll(&poller, 1, interval);
+    result = poll(&poller, 1, pollTimeoutMs);
+    if (result < 0 && EINTR == errno)
+    {
+      continue;
+    }
 #elif defined(AZ_PLATFORM_WINDOWS)
-    result = WSAPoll(&poller, 1, interval);
+    result = WSAPoll(&poller, 1, pollTimeoutMs);
 #endif
+    if (result != 0)
+    {
+      return result;
+    }
+    now = std::chrono::steady_clock::now();
   }
-  // result can be either 0 (timeout) or > 1 (socket ready)
+  // result can be 0 (timeout), > 0 (socket ready), or < 0 (error)
   return result;
 }
 
@@ -188,14 +203,17 @@ static inline std::string GetHTTPMessagePreBody(Azure::Core::Http::Request const
 
 static void CleanupThread()
 {
+  // NOTE: Avoid using Log::Write in here as it may fail on macOS,
+  // see issue: https://github.com/Azure/azure-sdk-for-cpp/issues/3224
+  // This method can wake up in de-attached mode after the application has been terminated.
+  // If that happens, trying to use `Log` would cause `abort` as it was previously deallocated.
   using namespace Azure::Core::Http::_detail;
   for (;;)
   {
-    Log::Write(Logger::Level::Verbose, "Clean pool check now...");
     // Won't continue until the ConnectionPoolMutex is released from MoveConnectionBackToPool
     std::unique_lock<std::mutex> lockForPoolCleaning(
         CurlConnectionPool::g_curlConnectionPool.ConnectionPoolMutex);
-    Log::Write(Logger::Level::Verbose, "Clean pool sleep");
+
     // Wait for the default time OR to the signal from the conditional variable.
     // wait_for releases the mutex lock when it goes to sleep and it takes the lock again when it
     // wakes up (or it's cancelled).
@@ -207,9 +225,6 @@ static void CleanupThread()
             }))
     {
       // Cancelled by another thead or no connections on wakeup
-      Log::Write(
-          Logger::Level::Verbose,
-          "Clean pool - no connections on wake - return *************************");
       CurlConnectionPool::g_curlConnectionPool.IsCleanThreadRunning = false;
       break;
     }
@@ -217,7 +232,6 @@ static void CleanupThread()
     decltype(CurlConnectionPool::g_curlConnectionPool
                  .ConnectionPoolIndex)::mapped_type connectionsToBeCleaned;
 
-    Log::Write(Logger::Level::Verbose, "Clean pool - inspect pool");
     // loop the connection pool index - Note: lock is re-taken for the mutex
     // Notes: The size of each host-index is always expected to be greater than 0 because the
     // host-index is removed anytime it becomes empty.
@@ -249,7 +263,6 @@ static void CleanupThread()
 
       if (connectionList.empty())
       {
-        Log::Write(Logger::Level::Verbose, "Clean pool - remove index " + index->first);
         index = CurlConnectionPool::g_curlConnectionPool.ConnectionPoolIndex.erase(index);
       }
       else
@@ -915,7 +928,7 @@ void CurlConnection::Shutdown()
 #elif defined(AZ_PLATFORM_WINDOWS)
   ::shutdown(m_curlSocket, SD_BOTH);
 #endif
-  m_isShutDown = true;
+  CurlNetworkConnection::Shutdown();
 }
 
 // Read from socket and return the number of bytes taken from socket
@@ -1026,7 +1039,7 @@ size_t CurlSession::ResponseBufferParser::Parse(
         {
           // Should never happen that parser is not statusLIne or Headers and we still try
           // to parse more.
-          _azure_UNREACHABLE_CODE();
+          AZURE_UNREACHABLE_CODE();
         }
         // clean internal buffer
         this->m_internalBuffer.clear();
@@ -1064,7 +1077,7 @@ size_t CurlSession::ResponseBufferParser::Parse(
         {
           // Should never happen that parser is not statusLIne or Headers and we still try
           // to parse more.
-          _azure_UNREACHABLE_CODE();
+          AZURE_UNREACHABLE_CODE();
         }
       }
     }
@@ -1227,7 +1240,7 @@ inline std::string GetConnectionKey(std::string const& host, CurlTransportOption
 {
   std::string key(host);
   key.append(!options.CAInfo.empty() ? options.CAInfo : "0");
-  key.append(!options.Proxy.empty() ? options.Proxy : "0");
+  key.append(options.Proxy ? (options.Proxy->empty() ? "NoProxy" : options.Proxy.Value()) : "0");
   key.append(!options.SslOptions.EnableCertificateRevocationListCheck ? "1" : "0");
   key.append(options.SslVerifyPeer ? "1" : "0");
   key.append(options.NoSignal ? "1" : "0");
@@ -1248,9 +1261,10 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
     bool resetPool)
 {
   uint16_t port = request.GetUrl().GetPort();
-  std::string const& host = request.GetUrl().GetScheme() + request.GetUrl().GetHost()
-      + (port != 0 ? std::to_string(port) : "");
-  std::string const connectionKey = GetConnectionKey(host, options);
+  // Generate a display name for the host being connected to
+  std::string const& hostDisplayName = request.GetUrl().GetScheme() + "://"
+      + request.GetUrl().GetHost() + (port != 0 ? ":" + std::to_string(port) : "");
+  std::string const connectionKey = GetConnectionKey(hostDisplayName, options);
 
   {
     decltype(CurlConnectionPool::g_curlConnectionPool
@@ -1301,35 +1315,47 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   // Creating a new connection is thread safe. No need to lock mutex here.
   // No available connection for the pool for the required host. Create one
   Log::Write(Logger::Level::Verbose, LogMsgPrefix + "Spawn new connection.");
-  auto newHandle = std::unique_ptr<CURL, decltype(&curl_easy_cleanup)>(curl_easy_init(), &curl_easy_cleanup);
+
+  auto newHandle = std::unique_ptr<CURL, CURL_deleter>(curl_easy_init());
 
   if (!newHandle)
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string("curl_easy_init returned Null"));
   }
   CURLcode result;
 
+  if (options.IPResolve != CURL_IPRESOLVE_WHATEVER)
+  {
+    if (!SetLibcurlOption(newHandle.get(), CURLOPT_IPRESOLVE, options.IPResolve, &result))
+    {
+      throw Azure::Core::Http::TransportException(
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
+          + std::string(curl_easy_strerror(result)));
+    }
+  }
+
   // Libcurl setup before open connection (url, connect_only, timeout)
-  if (!SetLibcurlOption(newHandle.get(), CURLOPT_URL, request.GetUrl().GetAbsoluteUrl().data(), &result))
+  if (!SetLibcurlOption(
+          newHandle.get(), CURLOPT_URL, request.GetUrl().GetAbsoluteUrl().data(), &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string(curl_easy_strerror(result)));
   }
 
   if (port != 0 && !SetLibcurlOption(newHandle.get(), CURLOPT_PORT, port, &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string(curl_easy_strerror(result)));
   }
 
   if (!SetLibcurlOption(newHandle.get(), CURLOPT_CONNECT_ONLY, 1L, &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string(curl_easy_strerror(result)));
   }
 
@@ -1339,16 +1365,17 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   if (!SetLibcurlOption(newHandle.get(), CURLOPT_TIMEOUT, 60L * 60L * 24L, &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string(curl_easy_strerror(result)));
   }
 
   if (options.ConnectionTimeout != Azure::Core::Http::_detail::DefaultConnectionTimeout)
   {
-    if (!SetLibcurlOption(newHandle.get(), CURLOPT_CONNECTTIMEOUT_MS, options.ConnectionTimeout, &result))
+    if (!SetLibcurlOption(
+            newHandle.get(), CURLOPT_CONNECTTIMEOUT_MS, options.ConnectionTimeout, &result))
     {
       throw Azure::Core::Http::TransportException(
-          _detail::DefaultFailedToGetNewConnectionTemplate + host
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
           + ". Fail setting connect timeout to: "
           + std::to_string(options.ConnectionTimeout.count()) + " ms. "
           + std::string(curl_easy_strerror(result)));
@@ -1358,13 +1385,14 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   /******************** Curl handle options apply to all connections created
    * The keepAlive option is managed by the session directly.
    */
-  if (!options.Proxy.empty())
+  if (options.Proxy)
   {
-    if (!SetLibcurlOption(newHandle.get(), CURLOPT_PROXY, options.Proxy.c_str(), &result))
+    if (!SetLibcurlOption(newHandle.get(), CURLOPT_PROXY, options.Proxy->c_str(), &result))
     {
       throw Azure::Core::Http::TransportException(
-          _detail::DefaultFailedToGetNewConnectionTemplate + host + ". Failed to set proxy to:"
-          + options.Proxy + ". " + std::string(curl_easy_strerror(result)));
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
+          + ". Failed to set proxy to:" + options.Proxy.Value() + ". "
+          + std::string(curl_easy_strerror(result)));
     }
   }
 
@@ -1373,8 +1401,9 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
     if (!SetLibcurlOption(newHandle.get(), CURLOPT_CAINFO, options.CAInfo.c_str(), &result))
     {
       throw Azure::Core::Http::TransportException(
-          _detail::DefaultFailedToGetNewConnectionTemplate + host + ". Failed to set CA cert to:"
-          + options.CAInfo + ". " + std::string(curl_easy_strerror(result)));
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
+          + ". Failed to set CA cert to:" + options.CAInfo + ". "
+          + std::string(curl_easy_strerror(result)));
     }
   }
 
@@ -1387,7 +1416,7 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   if (!SetLibcurlOption(newHandle.get(), CURLOPT_SSL_OPTIONS, sslOption, &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
         + ". Failed to set ssl options to long bitmask:" + std::to_string(sslOption) + ". "
         + std::string(curl_easy_strerror(result)));
   }
@@ -1397,7 +1426,7 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
     if (!SetLibcurlOption(newHandle.get(), CURLOPT_SSL_VERIFYPEER, 0L, &result))
     {
       throw Azure::Core::Http::TransportException(
-          _detail::DefaultFailedToGetNewConnectionTemplate + host
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
           + ". Failed to disable ssl verify peer. " + std::string(curl_easy_strerror(result)));
     }
   }
@@ -1407,7 +1436,7 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
     if (!SetLibcurlOption(newHandle.get(), CURLOPT_NOSIGNAL, 1L, &result))
     {
       throw Azure::Core::Http::TransportException(
-          _detail::DefaultFailedToGetNewConnectionTemplate + host
+          _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
           + ". Failed to set NOSIGNAL option for libcurl. "
           + std::string(curl_easy_strerror(result)));
     }
@@ -1419,15 +1448,23 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
   if (!SetLibcurlOption(newHandle.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1, &result))
   {
     throw Azure::Core::Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". Failed to set libcurl HTTP/1.1"
-        + ". " + std::string(curl_easy_strerror(result)));
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
+        + ". Failed to set libcurl HTTP/1.1" + ". " + std::string(curl_easy_strerror(result)));
+  }
+
+  // Make libcurl to support only TLS v1.2 or later
+  if (!SetLibcurlOption(newHandle.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2, &result))
+  {
+    throw Azure::Core::Http::TransportException(
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName
+        + ". Failed enforcing TLS v1.2 or greater. " + std::string(curl_easy_strerror(result)));
   }
 
   auto performResult = curl_easy_perform(newHandle.get());
   if (performResult != CURLE_OK)
   {
     throw Http::TransportException(
-        _detail::DefaultFailedToGetNewConnectionTemplate + host + ". "
+        _detail::DefaultFailedToGetNewConnectionTemplate + hostDisplayName + ". "
         + std::string(curl_easy_strerror(performResult)));
   }
 

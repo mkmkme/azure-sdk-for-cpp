@@ -4,11 +4,29 @@
 
 ### Features Added
 
+- Bumped up API version to `2021-06-08`.
+- Added fields `ProvisionedBandwidthMBps`, `EnabledProtocols` and `RootSquash` in `ShareItemDetails` and `ShareProperties`.
+- Added support for listing files with extended information.
+- Added new APIs:
+  - ShareDirectoryClient::RenameFile()
+  - ShareDirectoryClient::RenameSubdirectory()
+  - ShareLeaseClient::Renew()
+- Added support for specifying last written time when uploading file range.
+- Added support for specifying file changed time when creating/copying file or setting file properties.
+
 ### Breaking Changes
 
 ### Bugs Fixed
 
+- Empty file or existing file won't be created/overwritten if the file to be downloaded doesn't exist.
+
 ### Other Changes
+
+## 12.2.1 (2022-03-09)
+
+### Other Changes
+
+- Deprecated enum `LeaseDuration`, use `LeaseDurationType` instead.
 
 ## 12.2.0 (2021-09-08)
 

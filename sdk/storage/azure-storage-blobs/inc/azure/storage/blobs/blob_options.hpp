@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -13,8 +14,9 @@
 #include <azure/core/match_conditions.hpp>
 #include <azure/core/modified_conditions.hpp>
 #include <azure/storage/common/access_conditions.hpp>
+#include <azure/storage/common/crypt.hpp>
 
-#include "azure/storage/blobs/protocol/blob_rest_client.hpp"
+#include "azure/storage/blobs/rest_client.hpp"
 
 namespace Azure { namespace Storage { namespace Blobs {
 
@@ -155,7 +157,7 @@ namespace Azure { namespace Storage { namespace Blobs {
     /**
      * API version used by this client.
      */
-    std::string ApiVersion = _detail::ApiVersion;
+    std::string ApiVersion;
   };
 
   /**
@@ -289,10 +291,22 @@ namespace Azure { namespace Storage { namespace Blobs {
   };
 
   /**
-   * @brief Optional parameters for #Azure::Storage::Blobs::BlobContainerClient::Undelete.
+   * @brief Optional parameters for
+   * #Azure::Storage::Blobs::BlobServiceClient::UndeleteBlobContainer.
    */
   struct UndeleteBlobContainerOptions final
   {
+  };
+
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlobServiceClient::RenameBlobContainer.
+   */
+  struct RenameBlobContainerOptions final
+  {
+    /**
+     * @brief Optional conditions that must be met to perform this operation.
+     */
+    LeaseAccessConditions SourceAccessConditions;
   };
 
   /**
@@ -495,6 +509,16 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief If the destination blob should be sealed. Only applicable for Append Blobs.
      */
     Azure::Nullable<bool> ShouldSealDestination;
+
+    /**
+     * Immutability policy to set on the destination blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the destination blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
   };
 
   /**
@@ -541,6 +565,21 @@ namespace Azure { namespace Storage { namespace Blobs {
      * that has arrived with the one that was sent.
      */
     Azure::Nullable<ContentHash> TransactionalContentHash;
+
+    /**
+     * Immutability policy to set on the destination blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+    /**
+     * Indicates whether the destination blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
+
+    /**
+     * Indicates the tags on the destination blob should be copied from source or replaced by Tags
+     * in this option. Default is to replace.
+     */
+    Models::BlobCopySourceTagsMode CopySourceTagsMode;
   };
 
   /**
@@ -726,7 +765,9 @@ namespace Azure { namespace Storage { namespace Blobs {
     /**
      * @brief Optional conditions that must be met to perform this operation.
      */
-    TagAccessConditions AccessConditions;
+    struct : public LeaseAccessConditions, public TagAccessConditions
+    {
+    } AccessConditions;
   };
 
   /**
@@ -737,7 +778,9 @@ namespace Azure { namespace Storage { namespace Blobs {
     /**
      * @brief Optional conditions that must be met to perform this operation.
      */
-    TagAccessConditions AccessConditions;
+    struct : public LeaseAccessConditions, public TagAccessConditions
+    {
+    } AccessConditions;
   };
 
   /**
@@ -776,6 +819,16 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief Optional conditions that must be met to perform this operation.
      */
     BlobAccessConditions AccessConditions;
+
+    /**
+     * Immutability policy to set on the blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
   };
 
   /**
@@ -825,6 +878,72 @@ namespace Azure { namespace Storage { namespace Blobs {
        */
       int32_t Concurrency = 5;
     } TransferOptions;
+
+    /**
+     * Immutability policy to set on the blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
+  };
+
+  struct UploadBlockBlobFromUriOptions final
+  {
+    /**
+     * If true, the properties of the source blob will be copied to the new blob.
+     */
+    bool CopySourceBlobProperties = true;
+
+    /**
+     * @brief The standard HTTP header system properties to set.
+     */
+    Models::BlobHttpHeaders HttpHeaders;
+
+    /**
+     * @brief Name-value pairs associated with the blob as metadata.
+     */
+    Storage::Metadata Metadata;
+
+    /**
+     * @brief The tags to set for this blob.
+     */
+    std::map<std::string, std::string> Tags;
+
+    /**
+     * @brief Indicates the tier to be set on blob.
+     */
+    Azure::Nullable<Models::AccessTier> AccessTier;
+
+    /**
+     * @brief Optional conditions that must be met to perform this operation.
+     */
+    BlobAccessConditions AccessConditions;
+
+    /**
+     * @brief Optional conditions that source must meet to perform this operation.
+     */
+    struct : public Azure::ModifiedConditions,
+             public Azure::MatchConditions,
+             public TagAccessConditions
+    {
+    } SourceAccessConditions;
+
+    /**
+     * @brief Hash of the blob content. This hash is used to verify the integrity of
+     * the blob during transport. When this header is specified, the storage service checks the hash
+     * that has arrived with the one that was sent. Note that this hash is not stored with the blob.
+     * If the two hashes do not match, the operation will fail.
+     */
+    Azure::Nullable<ContentHash> TransactionalContentHash;
+
+    /**
+     * Indicates the tags on the destination blob should be copied from source or replaced by Tags
+     * in this option. Default is to replace.
+     */
+    Models::BlobCopySourceTagsMode CopySourceTagsMode;
   };
 
   /**
@@ -904,6 +1023,16 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief Optional conditions that must be met to perform this operation.
      */
     BlobAccessConditions AccessConditions;
+
+    /**
+     * Immutability policy to set on the blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
   };
 
   /**
@@ -923,6 +1052,154 @@ namespace Azure { namespace Storage { namespace Blobs {
     struct : public LeaseAccessConditions, public TagAccessConditions
     {
     } AccessConditions;
+  };
+
+  /**
+   * @brief Blob Query text configuration for input.
+   */
+  class BlobQueryInputTextOptions final {
+  public:
+    /**
+     * @brief Creates CSV text configuration.
+     *
+     * @param recordSeparator Record separator.
+     * @param columnSeparator Column sepeartor.
+     * @param quotationCharacter Field quote.
+     * @param escapeCharacter Escape character.
+     * @param hasHeaders If CSV file has headers.
+     * @return CSV text configuration.
+     */
+    static BlobQueryInputTextOptions CreateCsvTextOptions(
+        const std::string& recordSeparator = std::string(),
+        const std::string& columnSeparator = std::string(),
+        const std::string& quotationCharacter = std::string(),
+        const std::string& escapeCharacter = std::string(),
+        bool hasHeaders = false);
+    /**
+     * @brief Creates Json text configuration.
+     *
+     * @param recordSeparator Record separator.
+     * @return Json text configuration.
+     */
+    static BlobQueryInputTextOptions CreateJsonTextOptions(
+        const std::string& recordSeparator = std::string());
+    /**
+     * @brief Creates Parquet text configuration.
+     *
+     * @return Parquet text configuration
+     */
+    static BlobQueryInputTextOptions CreateParquetTextOptions();
+
+  private:
+    Models::_detail::QueryFormatType m_format;
+    std::string m_recordSeparator;
+    std::string m_columnSeparator;
+    std::string m_quotationCharacter;
+    std::string m_escapeCharacter;
+    bool m_hasHeaders = false;
+
+    friend class BlockBlobClient;
+  };
+
+  /**
+   * @brief Blob Query text configuration for output.
+   */
+  class BlobQueryOutputTextOptions final {
+  public:
+    /**
+     * @brief Creates CSV text configuration.
+     *
+     * @param recordSeparator Record separator.
+     * @param columnSeparator Column sepeartor.
+     * @param quotationCharacter Field quote.
+     * @param escapeCharacter Escape character.
+     * @param hasHeaders If CSV file has headers.
+     * @return CSV text configuration.
+     */
+    static BlobQueryOutputTextOptions CreateCsvTextOptions(
+        const std::string& recordSeparator = std::string(),
+        const std::string& columnSeparator = std::string(),
+        const std::string& quotationCharacter = std::string(),
+        const std::string& escapeCharacter = std::string(),
+        bool hasHeaders = false);
+    /**
+     * @brief Creates Json text configuration.
+     *
+     * @param recordSeparator Record separator.
+     * @return Json text configuration.
+     */
+    static BlobQueryOutputTextOptions CreateJsonTextOptions(
+        const std::string& recordSeparator = std::string());
+    /**
+     * @brief Creates Arrow text configuration.
+     *
+     * @param schema A list of fields describing the schema.
+     * @return Arrow text configuration.
+     */
+    static BlobQueryOutputTextOptions CreateArrowTextOptions(
+        std::vector<Models::BlobQueryArrowField> schema);
+
+  private:
+    Models::_detail::QueryFormatType m_format;
+    std::string m_recordSeparator;
+    std::string m_columnSeparator;
+    std::string m_quotationCharacter;
+    std::string m_escapeCharacter;
+    bool m_hasHeaders = false;
+    std::vector<Models::BlobQueryArrowField> m_schema;
+
+    friend class BlockBlobClient;
+  };
+
+  /**
+   * @brief Blob Query Error.
+   */
+  struct BlobQueryError final
+  {
+    /**
+     * @brief Error name.
+     */
+    std::string Name;
+    /**
+     * @brief Error description.
+     */
+    std::string Description;
+    /**
+     * @brief If the error is a fatal error.
+     */
+    bool IsFatal = false;
+    /**
+     * The position of the error..
+     */
+    int64_t Position;
+  };
+
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlockBlobClient::Query.
+   */
+  struct QueryBlobOptions final
+  {
+    /**
+     * @brief Input text configuration.
+     */
+    BlobQueryInputTextOptions InputTextConfiguration;
+    /**
+     * @brief Output text configuration.
+     */
+    BlobQueryOutputTextOptions OutputTextConfiguration;
+    /**
+     * @brief Optional conditions that must be met to perform this operation.
+     */
+    BlobAccessConditions AccessConditions;
+    /**
+     * @brief Callback for progress handling.
+     */
+    std::function<void(int64_t, int64_t)> ProgressHandler;
+    /**
+     * @brief Callback for error handling. If you don't specify one, the default will be used, which
+     * will ignore all non-fatal errors and throw for fatal errors.
+     */
+    std::function<void(BlobQueryError)> ErrorHandler;
   };
 
   /**
@@ -949,6 +1226,16 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief Optional conditions that must be met to perform this operation.
      */
     BlobAccessConditions AccessConditions;
+
+    /**
+     * Immutability policy to set on the blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
   };
 
   /**
@@ -999,6 +1286,8 @@ namespace Azure { namespace Storage { namespace Blobs {
   {
     /**
      * @brief Optional conditions that must be met to perform this operation.
+     * @remarks Azure storage service doesn't support tags access condition for this operation.
+     * Don't use it.
      */
     AppendBlobAccessConditions AccessConditions;
   };
@@ -1038,6 +1327,16 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief Optional conditions that must be met to perform this operation.
      */
     BlobAccessConditions AccessConditions;
+
+    /**
+     * Immutability policy to set on the blob.
+     */
+    Azure::Nullable<Models::BlobImmutabilityPolicy> ImmutabilityPolicy;
+
+    /**
+     * Indicates whether the blob has a legal hold.
+     */
+    Azure::Nullable<bool> HasLegalHold;
   };
 
   /**
@@ -1136,6 +1435,22 @@ namespace Azure { namespace Storage { namespace Blobs {
      * @brief Optional conditions that must be met to perform this operation.
      */
     BlobAccessConditions AccessConditions;
+
+    /**
+     * @brief This parameter identifies the portion of the ranges to be returned with the next
+     * operation. The operation returns a marker value within the response body if the ranges
+     * returned were not complete. The marker value may then be used in a subsequent call to request
+     * the next set of ranges.This value is opaque to the client.
+     */
+    Azure::Nullable<std::string> ContinuationToken;
+
+    /**
+     * @brief This parameter specifies the maximum number of page ranges to return. If the request
+     * specifies a value greater than 10000, the server will return up to 10000 items. If there are
+     * additional results to return, the service returns a continuation token in the NextMarker
+     * response element.
+     */
+    Azure::Nullable<int32_t> PageSizeHint;
   };
 
   /**
@@ -1149,4 +1464,56 @@ namespace Azure { namespace Storage { namespace Blobs {
     BlobAccessConditions AccessConditions;
   };
 
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlobClient::SetLegalHold.
+   */
+  struct SetBlobLegalHoldOptions final
+  {
+  };
+
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlobClient::SetImmutabilityPolicy.
+   */
+  struct SetBlobImmutabilityPolicyOptions final
+  {
+    /**
+     * @brief Optional conditions that must be met to perform this operation.
+     */
+    struct
+    {
+      /**
+       * @brief Specify this header to perform the operation only if the resource has not been
+       * modified since the specified time. This timestamp will be truncated to second.
+       */
+      Azure::Nullable<Azure::DateTime> IfUnmodifiedSince;
+    } AccessConditions;
+  };
+
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlobClient::DeleteImmutabilityPolicy.
+   */
+  struct DeleteBlobImmutabilityPolicyOptions final
+  {
+  };
+
+  /**
+   * @brief Optional parameters for #Azure::Storage::Blobs::BlobBatchClient::SubmitBatch.
+   */
+  struct SubmitBlobBatchOptions final
+  {
+  };
+
+  namespace _detail {
+    inline std::string TagsToString(const std::map<std::string, std::string>& tags)
+    {
+      return std::accumulate(
+          tags.begin(),
+          tags.end(),
+          std::string(),
+          [](const std::string& a, const std::pair<std::string, std::string>& b) {
+            return a + (a.empty() ? "" : "&") + _internal::UrlEncodeQueryParameter(b.first) + "="
+                + _internal::UrlEncodeQueryParameter(b.second);
+          });
+    }
+  } // namespace _detail
 }}} // namespace Azure::Storage::Blobs

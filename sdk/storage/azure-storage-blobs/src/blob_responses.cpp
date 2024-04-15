@@ -70,8 +70,16 @@ namespace Azure { namespace Storage { namespace Blobs {
   void FindBlobsByTagsPagedResponse::OnNextPage(const Azure::Core::Context& context)
   {
     m_operationOptions.ContinuationToken = NextPageToken;
-    *this = m_blobServiceClient->FindBlobsByTags(
-        m_tagFilterSqlExpression, m_operationOptions, context);
+    if (m_blobServiceClient)
+    {
+      *this = m_blobServiceClient->FindBlobsByTags(
+          m_tagFilterSqlExpression, m_operationOptions, context);
+    }
+    else
+    {
+      *this = m_blobContainerClient->FindBlobsByTags(
+          m_tagFilterSqlExpression, m_operationOptions, context);
+    }
   }
 
   void ListBlobsPagedResponse::OnNextPage(const Azure::Core::Context& context)
@@ -88,11 +96,13 @@ namespace Azure { namespace Storage { namespace Blobs {
 
   void GetPageRangesPagedResponse::OnNextPage(const Azure::Core::Context& context)
   {
+    m_operationOptions.ContinuationToken = NextPageToken;
     *this = m_pageBlobClient->GetPageRanges(m_operationOptions, context);
   }
 
   void GetPageRangesDiffPagedResponse::OnNextPage(const Azure::Core::Context& context)
   {
+    m_operationOptions.ContinuationToken = NextPageToken;
     if (m_previousSnapshot.HasValue())
     {
       *this = m_pageBlobClient->GetPageRangesDiff(
@@ -103,7 +113,7 @@ namespace Azure { namespace Storage { namespace Blobs {
       *this = m_pageBlobClient->GetManagedDiskPageRangesDiff(
           m_previousSnapshotUrl.Value(), m_operationOptions, context);
     }
-    _azure_UNREACHABLE_CODE();
+    AZURE_UNREACHABLE_CODE();
   }
 
 }}} // namespace Azure::Storage::Blobs

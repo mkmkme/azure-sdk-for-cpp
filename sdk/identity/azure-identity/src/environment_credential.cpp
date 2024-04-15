@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 #include "azure/identity/environment_credential.hpp"
+#include "azure/identity/client_certificate_credential.hpp"
 #include "azure/identity/client_secret_credential.hpp"
 
-#include "private/environment.hpp"
+#include <azure/core/internal/environment.hpp>
 
 using namespace Azure::Identity;
 
 EnvironmentCredential::EnvironmentCredential(
     Azure::Core::Credentials::TokenCredentialOptions options)
 {
-  using _detail::Environment;
+  using Azure::Core::_internal::Environment;
 
   auto tenantId = Environment::GetVariable("AZURE_TENANT_ID");
   auto clientId = Environment::GetVariable("AZURE_CLIENT_ID");
@@ -21,8 +22,8 @@ EnvironmentCredential::EnvironmentCredential(
 
   // auto username = Environment::GetVariable("AZURE_USERNAME");
   // auto password = Environment::GetVariable("AZURE_PASSWORD");
-  //
-  // auto clientCertificatePath = Environment::GetVariable("AZURE_CLIENT_CERTIFICATE_PATH");
+
+  auto clientCertificatePath = Environment::GetVariable("AZURE_CLIENT_CERTIFICATE_PATH");
 
   if (!tenantId.empty() && !clientId.empty())
   {
@@ -44,16 +45,17 @@ EnvironmentCredential::EnvironmentCredential(
             new ClientSecretCredential(tenantId, clientId, clientSecret, options));
       }
     }
-    // TODO: These credential types are not implemented. Uncomment when implemented.
+    // TODO: UsernamePasswordCredential is not implemented. Uncomment when implemented.
     // else if (!username.empty() && !password.empty())
     // {
     //   m_credentialImpl.reset(
     //       new UsernamePasswordCredential(tenantId, clientId, username, password, options));
     // }
-    // else if (!clientCertificatePath.empty())
-    // {
-    //   m_credentialImpl.reset(new ClientCertificateCredential(tenantId, clientId, options));
-    // }
+    else if (!clientCertificatePath.empty())
+    {
+      m_credentialImpl.reset(
+          new ClientCertificateCredential(tenantId, clientId, clientCertificatePath, options));
+    }
   }
 }
 

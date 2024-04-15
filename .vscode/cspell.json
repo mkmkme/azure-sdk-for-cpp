@@ -11,15 +11,18 @@
     "*.exe",
     "*.a",
     "*.lib",
+    "*.yaml",  
+    "**/libcurl-stress-test/README.md", 
+    ".github/CODEOWNERS",
+    ".gitignore",
     ".vscode/cspell.json",
     "eng/common/**/*",
     "json.hpp",
+    "Dockerfile",
     "*nlohmann-json*",
     "eng/docs/api/assets/**/*",
-    "sdk/keyvault/azure-security-keyvault-keys/test/ut/recordings/*.json",
-    "sdk/keyvault/azure-security-keyvault-certificates/test/ut/recordings/*.json",
-    "sdk/keyvault/azure-security-keyvault-certificates/inc/azure/keyvault/certificates/certificate_client_models.hpp",
-    "sdk/keyvault/azure-security-keyvault-keys/test/ut/key_client_import_test_live.cpp"
+    "eng/CredScanSuppression.json",
+    "**/test/ut/recordings/*.json"
   ],
   // * Unless configured otherwise, these words are not case sensitive
   // * Alphabetize the list when making changes so the list is easier for future
@@ -33,21 +36,30 @@
     "azsdk",
     "azuresdk",
     "azuresdkforcpp",
+    "centralus",
+    "centraluseuap",
     "cmake",
     "CMOCKA",
     "Cobertura",
     "ctest",
+    "cuse",
+    "CUSEUAP",
     "DCMAKE",
+    "DDISABLE",
     "deserializers",
     "Deserializes",
+    "DFETCH",
+    "DMSVC",
     "docfx",
     "DPAPI",
     "DRUN",
     "DWARNINGS",
+    "easia",
     "eastus",
     "echsmkey",
     "Edlund",
     "EKUs",
+    "euap",
     "Favicon",
     "gcovr",
     "githubio",
@@ -57,7 +69,11 @@
     "HKEY",
     "HRESULT",
     "IMDS",
+    "Intel",
     "itfactor",
+    "iusg",
+    "jepio",
+    "Jeremi",
     "Kirilov",
     "lcov",
     "LIBCMTD",
@@ -67,17 +83,23 @@
     "MHSM",
     "moxygen",
     "MSRC",
+    "ncus",
     "Niels",
     "nlohmann",
+    "nostd",
     "noclean",
     "NOCLOSE",
     "NOCRLF",
     "NOLINT",
     "NOMINMAX",
+    "northcentralus",
     "NTSTATUS",
     "okhttp",
+    "opentelemetry",
+    "otel",
     "PBYTE",
     "pdbs",
+    "Piotrowski",
     "PUCHAR",
     "pwsh",
     "Ragrs",
@@ -87,21 +109,32 @@
     "Reitz",
     "retriable",
     "rwxrw",
+    "sasia",
+    "scus",
     "SDDL",
+    "sdpath",
     "serializers",
     "Seriot",
+    "southcentralus",
     "SPDX",
     "stoi",
     "stoll",
     "stoull",
     "STREQ",
+    "uksouth",
     "undeleted",
     "unscoped",
     "unskipped",
     "UPNs",
+    "uaenorth",
+    "usgov",
+    "usgoviowa",
+    "usgovvirginia",
+    "westcentralus",
     "vcpkg",
     "Viet",
     "Viktor",
+    "vusg",
     "Wdocumentation",
     "Werror",
     "westus",
@@ -118,6 +151,24 @@
         "lcov",
         "iname",
         "mspremier"
+      ]
+    },
+    {
+      "filename": "**/eng/**",
+      "words": [
+        "TEAMPROJECTID",
+        "issecret",
+        "PSScriptRoot",
+        "BUILDID",
+        "cppvcpkgcache",
+        "cmakegenerate",
+        "cmakesourcegenerate"
+      ]
+    },
+    {
+      "filename": "**/sdk/attestation/**",
+      "words": [
+        "tpm"
       ]
     },
     {
@@ -141,6 +192,8 @@
         "davidchisnall",
         "Gabor",
         "Gyimesi",
+        "Heffner",
+        "johnwheffner",
         "Joubert",
         "juchem",
         "lordgamez",
@@ -168,12 +221,25 @@
       ]
     },
     {
+      "filename": "**/sdk/storage/azure-storage-queues/src/rest_client.cpp",
+      "words": [
+        "numofmessages"
+      ]
+    },
+    {
+       "filename": "**/sdk/storage/azure-storage-files-shares/**/*",
+       "words": [
+         "mibps"
+        ]
+    },
+    {
       "filename": "**/cmake-modules/**/*",
       "words": [
         "fprofile",
         "ftest",
         "mathjax",
-        "mdfile"
+        "mdfile",
+        "Xlinker"
       ]
     }
   ],

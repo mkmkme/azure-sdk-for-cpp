@@ -3,12 +3,12 @@
 
 #include "azure/keyvault/certificates/certificate_client.hpp"
 
+#include "azure/keyvault/shared/keyvault_shared.hpp"
 #include "private/certificate_constants.hpp"
 #include "private/certificate_serializers.hpp"
 #include "private/keyvault_certificates_common_request.hpp"
 #include "private/package_version.hpp"
 #include <azure/core/base64.hpp>
-#include <azure/keyvault/shared/keyvault_shared.hpp>
 
 #include <azure/core/credentials/credentials.hpp>
 #include <azure/core/http/http.hpp>
@@ -66,9 +66,9 @@ CertificateClient::CertificateClient(
     std::string const& vaultUrl,
     std::shared_ptr<Core::Credentials::TokenCredential const> credential,
     CertificateClientOptions options)
-    : m_vaultUrl(vaultUrl), m_apiVersion(options.Version.ToString())
+    : m_vaultUrl(vaultUrl), m_apiVersion(options.ApiVersion)
 {
-  auto apiVersion = options.Version.ToString();
+  auto apiVersion = options.ApiVersion;
 
   std::vector<std::unique_ptr<HttpPolicy>> perRetrypolicies;
   {
@@ -493,5 +493,3 @@ Azure::Response<KeyVaultCertificate> CertificateClient::UpdateCertificatePropert
   auto value = KeyVaultCertificateSerializer::Deserialize(certificateName, *rawResponse);
   return Azure::Response<KeyVaultCertificate>(std::move(value), std::move(rawResponse));
 }
-
-const ServiceVersion ServiceVersion::V7_2("7.2");

@@ -1,4 +1,4 @@
-## Azure SDK for C++ Contributing Guide
+# Azure SDK for C++ Contributing Guide
 
 Thank you for your interest in contributing to Azure SDK for C++.
 
@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Azure SDK for C++.
 
 - If you would like to become an active contributor to this project please follow the instructions provided in [Microsoft Azure Projects Contribution Guidelines](https://azure.github.io/azure-sdk/policies_opensource.html).
 
-- To make code changes, or contribute something new, please follow the [GitHub Forks / Pull requests model](https://help.github.com/articles/fork-a-repo/): Fork the repo, make the change and propose it back by submitting a pull request.
+- To make code changes, or contribute something new, please follow the [GitHub Forks / Pull requests model](https://docs.github.com/articles/fork-a-repo/): Fork the repo, make the change and propose it back by submitting a pull request.
 
 ## Pull Requests
 
@@ -17,7 +17,7 @@ Thank you for your interest in contributing to Azure SDK for C++.
 - **DO NOT** submit "work in progress" PRs. A PR should only be submitted when it is considered ready for review and subsequent merging by the contributor.
   - If the change is work-in-progress or an experiment, **DO** start if off as a temporary draft PR.
 - **DO** give PRs short-but-descriptive names (e.g. "Improve code coverage for Azure.Core by 10%", not "Fix #1234") and add a description which explains why the change is being made.
-- **DO** refer to any relevant issues, and include [keywords](https://help.github.com/articles/closing-issues-via-commit-messages/) that automatically close issues when the PR is merged.
+- **DO** refer to any relevant issues, and include [keywords](https://docs.github.com/articles/closing-issues-via-commit-messages/) that automatically close issues when the PR is merged.
 - **DO** tag any users that should know about and/or review the change.
 - **DO** ensure each commit successfully builds. The entire PR must pass all tests in the Continuous Integration (CI) system before it'll be merged.
 - **DO** address PR feedback in an additional commit(s) rather than amending the existing commits, and only rebase/squash them when necessary. This makes it easier for reviewers to track changes.
@@ -39,9 +39,9 @@ Thank you for your interest in contributing to Azure SDK for C++.
   - Contributor is using an e-mail address other than the primary GitHub address and wants that preserved in the history. Contributor must be willing to squash
     the commits manually before acceptance.
 
-## Developer Guide
+# Developer Guide
 
-### Codespaces
+## Codespaces
 
 Codespaces is new technology that allows you to use a container as your development environment. This repo provides a Codespaces container which is supported by both GitHub Codespaces and VS Code Codespaces.
 
@@ -50,54 +50,54 @@ Codespaces is new technology that allows you to use a container as your developm
 1. From the Azure SDK GitHub repo, click on the "Code -> Open with Codespaces" button.
 1. Open a Terminal. The development environment will be ready for you. Continue to [Building and Testing](https://github.com/Azure/azure-sdk-for-cpp/blob/main/CONTRIBUTING.md#building-and-testing).
 
-#### VS Code Codespaces
+### VS Code Codespaces
 
 1. Install the [VS Code Remote Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack)
 1. When you open the Azure SDK for C++ repo in VS Code, it will prompt you to open the project in the Dev Container. If it does not prompt you, then hit CTRL+P, and select "Remote-Containers: Open Folder in Container..."
 1. Open a Terminal. The development environment will be ready for you. Continue to [Building and Testing](https://github.com/Azure/azure-sdk-for-cpp/blob/main/CONTRIBUTING.md#building-and-testing).
 
-### Full Local Setup
+## Full Local Setup
 
-#### Pre-requisites
+### Pre-requisites
 
-##### CMake
+#### CMake
 
 CMake version 3.13 or higher is required to build these libraries. Download and install CMake from the project's
 [website](https://cmake.org/download/).
 
-##### Third Party Dependencies
+### Third Party Dependencies
 
-- curl
-- libxml2
-- clang-format (min version 10)
+Azure SDK uses Vcpkg manifest mode to declare the [list of required 3rd party dependencies](https://github.com/Azure/azure-sdk-for-cpp/blob/main/vcpkg.json) for building the SDK service libraries. It will also get and set up Vcpkg automatically. **You can move on to [Building the project](#building-the-project)** and skip the next part if you are not interested in learning about alternatives for setting up dependencies.
 
-Vcpkg can be used to install the Azure SDK for CPP dependencies into a specific folder on the system instead of globally installing them.
-Follow [vcpkg install guide](https://github.com/microsoft/vcpkg#getting-started) to get vcpkg and install the following dependencies:
+#### Customize the Vcpkg dependency integration
 
-```sh
-./vcpkg install curl libxml2
-```
+If the CMake option _-DCMAKE_TOOLCHAIN_FILE=..._ is not defined to generate the project, the Azure SDK project will automatically get Vcpkg and link it to get its dependencies. You can use the next environment variables to change this behavior:
 
-When using vcpkg, you can set the `VCPKG_ROOT` environment variable to the vcpkg Git repository folder. This would automatically set the CMake variable `CMAKE_TOOLCHAIN_FILE` for you, enabling the project to use any library installed with vcpkg.
+<center>
 
-The Azure SDK for C++ uses [this vcpkg release version](https://github.com/Azure/azure-sdk-for-cpp/blob/main/eng/vcpkg-commit.txt) for continuous integration (CI) building and testing. Make sure to checkout this version when following the next steps for building and running the Azure SDK for C++. Using a newer vcpkg version might still work, however, if it is tested.
+<table>
+<tr>
+<td>Environment Variable</td>
+<td>Description</td>
+</tr>
+<tr>
+<td>AZURE_SDK_DISABLE_AUTO_VCPKG</td>
+<td>When defined, Vcpkg won't be automatically cloned and linked. Use this setting, for example, if your dependencies are installed on the system and you don't need to get them.</td>
+</tr>
+<tr>
+<td>AZURE_SDK_VCPKG_COMMIT</td>
+<td>This variable can set the git commit id to be used when automatically cloning Vcpkg.</td>
+</tr>
+<tr>
+<td>VCPKG_ROOT</td>
+<td>Use this variable to set an existing Vcpkg folder from your system to be linked for building. Use this, for example, when working with Vcpkg classic mode, to switch between different Vcpkg folders.</td>
+</tr>
+</table>
 
-```sh
-# Checking out vcpkg release version before installing dependencies
+</center>
 
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-# Checkout the vcpkg commit from the vcpkg-commit.txt file (link above)
-git checkout <vcpkg commit>
 
-# build vcpkg (showing Linux command, see vcpkg getting started for Windows)
-./bootstrap-vcpkg.sh
-./vcpkg install curl libxml2
-```
-
-### Building and Testing
-
-#### Building the project
+## Building the project
 
 Generate the CMake files and build as you would with any standard CMake project. From the
 repo root, run:
@@ -138,8 +138,8 @@ The following CMake options are available for adding/removing project features.
 <td>OFF</td>
 </tr>
 <tr>
-<td>BUILD_STORAGE_SAMPLES</td>
-<td>Build Azure Storage clients sample application.</td>
+<td>BUILD_SAMPLES</td>
+<td>Build Azure SDK for C++ sample applications. </td>
 <td>OFF</td>
 </tr>
 <tr>
@@ -176,14 +176,44 @@ The following CMake options are available for adding/removing project features.
 
 #### Testing the project
 
-If you want to run tests also, generate build files using below command and then build.
+##### Test Mode
+
+Before running unit tests, you have to decide what is the test mode you want to use. To set the test mode,
+use the environment variable `AZURE_TEST_MODE`. See the supported values next:
+
+- LIVE
+
+When setting `AZURE_TEST_MODE=LIVE`, test cases will try to connect to `AZURE` cloud services using the [test environment configuration](#test-environment-configuration). Make sure to set up the environment variables required to run test cases.
+
+This is the default test mode if `AZURE_TEST_MODE` is not even set.
+
+- PLAYBACK
+
+When setting `AZURE_TEST_MODE=PLAYBACK`, test cases will consume pre-recorded data instead of sending requests to an AZURE cloud service. The [test environment configuration](#test-environment-configuration) is still required, but the configuration values won't be relevant. Use this test mode to run tests cases without a network connection.
+
+- RECORD
+
+When setting `AZURE_TEST_MODE=RECORD`, test cases will run the as when running `LIVE`. All the AZURE service network responses are recorded in a json file within the /recordings folder from the /test/ut directory. Use this test mode to generate pre-recorded data to be used on `PLAYBACK` mode.
+
+##### Test Environment Configuration
+
+Some environment variables are expected to be defined for some test binaries. For example, for `azure-storage-blobs-test`, there should be a `STANDARD_STORAGE_CONNECTION_STRING` variable to let tests know how to connect to the Azure Storage account.
+
+Even for running on `PLAYBACK` mode, the env configuration is mandatory. This is because a test case does not know about the test modes. A test case will always look for the environment configuration to connect/authenticate to Azure.
+
+Take a look to [this file](https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/core/ci.yml#L52) which defines the required configuarion for each SDK package. Those settings are used to run all unit test on `PLAYBACK` mode on CI, you can use the same settings from that file to run on `PLAYBACK` locally.
+
+
+##### Running tests
+
+If you want to run tests, generate build files using below command and then build.
 
 ```sh
 cmake -DBUILD_TESTING=ON ..
 cmake --build .
 ```
 
-Tests are executed via the `ctest` command included with CMake. From the build directory, run:
+Tests are executed via the `ctest` command included with CMake. After setting a [test mode](#test-mode), from the build directory, run:
 
 ```sh
 # use -V for verbose
@@ -192,6 +222,7 @@ ctest -V
 ctest -N
 # Use -R to use a regular exp for what to run
 ctest -R Http # runs only HTTP tests
+ctest -R storage # runs all the azure storage unit tests
 ```
 
 #### Generating Code Coverage reports

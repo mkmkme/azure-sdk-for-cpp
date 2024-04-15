@@ -86,6 +86,16 @@ namespace Azure { namespace Storage { namespace Sas {
     DeleteVersion = 128,
 
     /**
+     * @brief Indicates that setting immutability policy is permitted.
+     */
+    SetImmutabilityPolicy = 256,
+
+    /**
+     * @brief Indicates that permanent delete is permitted.
+     */
+    PermanentDelete = 512,
+
+    /**
      * @brief Indicates that all permissions are set.
      */
     All = ~0,
@@ -149,6 +159,16 @@ namespace Azure { namespace Storage { namespace Sas {
      * @brief Indicates that deleting previous blob version is permitted.
      */
     DeleteVersion = 64,
+
+    /**
+     * @brief Indicates that setting immutability policy is permitted.
+     */
+    SetImmutabilityPolicy = 128,
+
+    /**
+     * @brief Indicates that permanent delete is permitted.
+     */
+    PermanentDelete = 256,
 
     /**
      * @brief Indicates that all permissions are set.
@@ -258,6 +278,11 @@ namespace Azure { namespace Storage { namespace Sas {
      * @brief Override the value returned for Content-Type response header..
      */
     std::string ContentType;
+
+    /**
+     * @brief Optional encryption scope to use when sending requests authorized with this SAS url.
+     */
+    std::string EncryptionScope;
 
     /**
      * @brief Sets the permissions for the blob container SAS.

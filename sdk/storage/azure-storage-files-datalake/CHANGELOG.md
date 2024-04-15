@@ -1,6 +1,6 @@
 # Release History
 
-## 12.3.0-beta.1 (Unreleased)
+## 12.4.0-beta.1 (Unreleased)
 
 ### Features Added
 
@@ -8,7 +8,22 @@
 
 ### Bugs Fixed
 
+- Fixed a bug where file/directory renaming cannot be authenticated with SAS.
+- Empty file or existing file won't be created/overwritten if the file to be downloaded doesn't exist.
+
 ### Other Changes
+
+## 12.3.1 (2022-03-09)
+
+### Other Changes
+
+- No public changes in this release.
+
+## 12.3.0 (2022-02-14)
+
+### Other Changes
+
+- Deprecated enum `LeaseDuration`, use `LeaseDurationType` instead.
 
 ## 12.2.0 (2021-09-08)
 

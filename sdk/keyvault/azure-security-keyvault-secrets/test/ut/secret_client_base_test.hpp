@@ -10,7 +10,7 @@
 
 #include <azure/core/test/test_base.hpp>
 #include <azure/identity/client_secret_credential.hpp>
-#include <azure/keyvault/keyvault_secrets.hpp>
+#include <azure/keyvault/secrets.hpp>
 
 using namespace std::chrono_literals;
 
@@ -30,7 +30,7 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Secrets { 
     Azure::Security::KeyVault::Secrets::SecretClient const& GetClientForTest(
         std::string const& testName)
     {
-      //_putenv_s("AZURE_TEST_MODE", "PLAYBACK");
+      // Azure::Core::_internal::Environment::SetVariable("AZURE_TEST_MODE", "PLAYBACK");
       // keep this here to quickly switch between test modes
       InitializeClient();
       // set the interceptor for the current test
@@ -53,7 +53,7 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Secrets { 
       m_client = InitTestClient<
           Azure::Security::KeyVault::Secrets::SecretClient,
           Azure::Security::KeyVault::Secrets::SecretClientOptions>(
-          m_keyVaultUrl, &m_credential, options);
+          m_keyVaultUrl, m_credential, options);
 
       // Update default time depending on test mode.
       UpdateWaitingTime(m_defaultWait);
@@ -96,6 +96,14 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Secrets { 
         // Wait for purge is completed
         std::this_thread::sleep_for(std::chrono::minutes(1));
       }
+    }
+
+    // Reads the current test instance name.
+    // Name gets also sanitized (special chars are removed) to avoid issues when recording or
+    // creating. This also return the name with suffix if the "AZURE_LIVE_TEST_SUFFIX" exists.
+    std::string GetTestName(bool sanitize = true)
+    {
+      return Azure::Core::Test::TestBase::GetTestNameSuffix(sanitize);
     }
 
     static inline void RemoveAllSecretsFromVault(

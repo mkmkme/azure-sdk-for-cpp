@@ -9,12 +9,11 @@
 #include <gtest/gtest.h>
 
 #include <azure/core/context.hpp>
+#include <azure/core/test/test_base.hpp>
 #include <azure/core/uuid.hpp>
 #include <azure/identity/client_secret_credential.hpp>
+#include <azure/keyvault/keys.hpp>
 #include <azure/keyvault/keys/cryptography/cryptography_client.hpp>
-#include <azure/keyvault/keyvault_keys.hpp>
-
-#include <azure/core/test/test_base.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -34,6 +33,16 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Keys { nam
     int m_testPollingTimeOutMinutes = 20;
     std::chrono::milliseconds m_testPollingIntervalMs = std::chrono::minutes(1);
 
+    // Reads the current test instance name.
+    // Name gets also sanitized (special chars are removed) to avoid issues when recording or
+    // creating. This also return the name with suffix if the "AZURE_LIVE_TEST_SUFFIX" exists.
+    std::string GetTestName(bool sanitize = true)
+    {
+      auto output = m_keyVaultUrl.compare(m_keyVaultHsmUrl) == 0 ? "Same" : "NotSame";
+      std::cout << "\n Keyvault and HSM are" << output;
+      return Azure::Core::Test::TestBase::GetTestNameSuffix(sanitize);
+    }
+
     Azure::Security::KeyVault::Keys::KeyClient const& GetClientForTest(std::string const& testName)
     {
       // set the interceptor for the current test
@@ -48,7 +57,7 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Keys { nam
       return InitTestClient<
           Azure::Security::KeyVault::Keys::Cryptography::CryptographyClient,
           Azure::Security::KeyVault::Keys::Cryptography::CryptographyClientOptions>(
-          keyId, &m_credential, options);
+          keyId, m_credential, options);
     }
 
     // Create
@@ -66,18 +75,18 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Keys { nam
       // `InitTestClient` takes care of setting up Record&Playback.
       m_client = InitTestClient<
           Azure::Security::KeyVault::Keys::KeyClient,
-          Azure::Security::KeyVault::Keys::KeyClientOptions>(m_keyVaultUrl, &m_credential, options);
+          Azure::Security::KeyVault::Keys::KeyClientOptions>(m_keyVaultUrl, m_credential, options);
 
       UpdateWaitingTime(m_testPollingIntervalMs);
     }
 
-    void CreateHsmClient()
+    void CreateHsmClient(std::string hsmUrl = "")
     {
       KeyClientOptions options;
       m_client = InitTestClient<
           Azure::Security::KeyVault::Keys::KeyClient,
           Azure::Security::KeyVault::Keys::KeyClientOptions>(
-          m_keyVaultHsmUrl, &m_credential, options);
+          hsmUrl.length() == 0 ? m_keyVaultHsmUrl : hsmUrl, m_credential, options);
     }
 
   public:

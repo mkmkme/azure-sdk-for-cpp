@@ -48,8 +48,20 @@ namespace Azure { namespace Core { namespace Http {
    */
   struct CurlTransportOptions final
   {
+    /// Copied from curl.cpp to avoid dependencies.
+    enum CurlOptIPResolve
+    {
+      CURL_IPRESOLVE_WHATEVER = 0, /* default, uses addresses to all IP versions that your system allows */
+      CURL_IPRESOLVE_V4 = 1, /* uses only IPv4 addresses/connections */
+      CURL_IPRESOLVE_V6 = 2, /* uses only IPv6 addresses/connections */
+    };
+
     /**
-     * @brief The string for the proxy is passed directly to the libcurl handle without any parsing
+     * @brief The string for the proxy is passed directly to the libcurl handle without any parsing.
+     *
+     * @details libcurl will use system's environment proxy configuration (if it is set) when the \p
+     * Proxy setting is not set (is null). Setting an empty string will make libcurl to ignore any
+     * proxy settings from the system (use no proxy).
      *
      * @remark No validation for the string is done by the Azure SDK. More about this option:
      * https://curl.haxx.se/libcurl/c/CURLOPT_PROXY.html.
@@ -57,7 +69,7 @@ namespace Azure { namespace Core { namespace Http {
      * @remark The default value is an empty string (no proxy).
      *
      */
-    std::string Proxy;
+    Azure::Nullable<std::string> Proxy;
     /**
      * @brief The string for the certificate authenticator is sent to libcurl handle directly.
      *
@@ -107,6 +119,11 @@ namespace Azure { namespace Core { namespace Http {
      *
      */
     bool NoSignal = false;
+
+    /**
+     * @brief Sets option CURLOPT_IPRESOLVE in libcurl.
+     */
+    int IPResolve = CURL_IPRESOLVE_WHATEVER;
 
     /**
      * @brief Contain the maximum time that you allow the connection phase to the server to take.

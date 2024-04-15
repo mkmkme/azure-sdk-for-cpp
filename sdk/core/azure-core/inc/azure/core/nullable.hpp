@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "azure/core/internal/azure_assert.hpp"
+#include "azure/core/azure_assert.hpp"
 
 #include <new> // for placement new
 #include <type_traits>
@@ -59,7 +59,7 @@ public:
    * @param other Another `%Nullable` instance to copy.
    */
   Nullable(const Nullable& other) noexcept(std::is_nothrow_copy_constructible<T>::value)
-      : m_hasValue(other.m_hasValue)
+      : m_disengaged{}, m_hasValue(other.m_hasValue)
   {
     if (m_hasValue)
     {
@@ -73,7 +73,7 @@ public:
    * @param other A `%Nullable` instance to move into the instance being constructed.
    */
   Nullable(Nullable&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
-      : m_hasValue(other.m_hasValue)
+      : m_disengaged{}, m_hasValue(other.m_hasValue)
   {
     if (m_hasValue)
     {
@@ -234,7 +234,7 @@ public:
    */
   const T& Value() const& noexcept
   {
-    _azure_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
+    AZURE_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
 
     return m_value;
   }
@@ -245,7 +245,7 @@ public:
    */
   T& Value() & noexcept
   {
-    _azure_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
+    AZURE_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
 
     return m_value;
   }
@@ -256,7 +256,7 @@ public:
    */
   T&& Value() && noexcept
   {
-    _azure_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
+    AZURE_ASSERT_MSG(m_hasValue, "Empty Nullable, check HasValue() first.");
 
     return std::move(m_value);
   }

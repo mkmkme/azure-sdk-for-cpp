@@ -29,7 +29,6 @@ stages:
       CtestRegex: "azure-security-keyvault.*"
       LiveTestCtestRegex: "azure-security-keyvault.*"
       LiveTestTimeoutInMinutes: 120
-      SubscriptionConfiguration: $(sub-config-azure-cloud-test-resources)
       LineCoverageTarget: 81
       BranchCoverageTarget: 42
       Artifacts:
@@ -42,3 +41,37 @@ stages:
         - Name: azure-security-keyvault-certificates
           Path: azure-security-keyvault-certificates
           VcpkgPortName: azure-security-keyvault-certificates-cpp
+      ArtifactsSource:
+        - Name: azure-security-keyvault-keys
+          Path: azure-security-keyvault-keys
+          VcpkgPortName: azure-security-keyvault-keys-cpp
+        - Name: azure-security-keyvault-certificates
+          Path: azure-security-keyvault-certificates
+          VcpkgPortName: azure-security-keyvault-keys-cpp
+        - Name: azure-security-keyvault-secrets
+          Path: azure-security-keyvault-secrets
+          VcpkgPortName: azure-security-keyvault-secrets-cpp
+      TestEnv:
+        - Name: AZURE_KEYVAULT_URL
+          Value: "https://non-real-account.vault.azure.net"
+        - Name: AZURE_KEYVAULT_HSM_URL
+          Value: "https://non-real-account.managedhsm.azure.net/"
+        # Tenant ID should use the uniqueID format for playback recordings
+        - Name: AZURE_TENANT_ID
+          Value: "33333333-3333-3333-3333-333333333333"
+        - Name: AZURE_CLIENT_ID
+          Value: "non-real-client"
+        - Name: AZURE_CLIENT_SECRET
+          Value: "non-real-secret"
+      CMakeTestOptions:
+        - Name: Default
+          Value: ''
+        - Name: Test
+          Value: '-DBUILD_TESTING=ON'
+        - Name: Samples
+          Value: '-DBUILD_TESTING=ON -DBUILD_SAMPLES=ON'
+        - Name: Performance
+          Value: '-DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_PERFORMANCE_TESTS=ON'
+      CMakeSourceTestOptions:
+        - Name: Source
+          Value: '-DFETCH_SOURCE_DEPS=ON'

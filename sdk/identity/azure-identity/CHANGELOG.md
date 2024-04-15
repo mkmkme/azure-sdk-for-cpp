@@ -1,6 +1,6 @@
 # Release History
 
-## 1.2.0-beta.1 (Unreleased)
+## 1.4.0-beta.2 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,49 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 1.4.0-beta.1 (2022-06-30)
+
+### Features Added
+
+- Added Azure App Service API version `2019-08-01` support for `ManagedIdentityCredential`.
+
+## 1.3.0 (2022-06-07)
+
+### Features Added
+
+- Added `ClientCertificateCredential`, and updated `EnvironmentCredential` to support client certificate authentication.
+- Added `ChainedTokenCredential`.
+
+## 1.3.0-beta.2 (2022-05-10)
+
+### Features Added
+
+- Added `ClientCertificateCredential`, and updated `EnvironmentCredential` to support client certificate authentication.
+
+## 1.3.0-beta.1 (2022-04-05)
+
+### Features Added
+
+- Added `ChainedTokenCredential`.
+
+## 1.2.0 (2022-03-08)
+
+### Features Added
+
+No changes since `1.2.0-beta.1`.
+
+## 1.2.0-beta.1 (2022-02-08)
+
+### Features Added
+
+- Enabled `EnvironmentCredential` and `ManagedIdentityCredential` to work on UWP.
+
+## 1.1.1 (2022-01-11)
+
+### Bugs Fixed
+
+- [2741](https://github.com/Azure/azure-sdk-for-cpp/issues/2741) Fixed linking problem when Azure SDK is built as DLL.
 
 ## 1.1.0 (2021-08-10)
 

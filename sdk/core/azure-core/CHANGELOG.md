@@ -1,14 +1,99 @@
 # Release History
 
-## 1.4.0-beta.1 (Unreleased)
+## 1.7.2 (2022-09-01)
+
+### Bugs Fixed
+
+- WinHTTP Transport Adapter: Fixed missing reason phrase handling for HTTP/2 responses.
+
+## 1.7.1 (2022-08-04)
+
+### Bugs Fixed
+
+- [[#3794]](https://github.com/Azure/azure-sdk-for-cpp/issues/3794) Fix memory leak in `CurlTransport`.
+- [[#3692]](https://github.com/Azure/azure-sdk-for-cpp/issues/3692) Interrupted poll calls cause spurious HTTP request failures. (A community contribution, courtesy of _[johnwheffner](https://github.com/johnwheffner)_)
+
+### Acknowledgments
+
+Thank you to our developer community members who helped to make Azure Core better with their contributions to this release:
+
+- John Heffner _([GitHub](https://github.com/johnwheffner))_
+
+## 1.7.0 (2022-06-30)
 
 ### Features Added
 
+- Added prototypes and initial service support for Distributed Tracing.
+
+## 1.7.0-beta.1 (2022-06-02)
+
+### Features Added
+
+- Added prototypes and initial service support for Distributed Tracing.
+
 ### Breaking Changes
 
-- `azure/core/azure_assert.hpp` header is moved to internal. `AzureNoReturnPath()` function is removed from global namespace. Associated macros, such as `AZURE_ASSERT` are renamed to indicate that they are internal. If your code was using the `AZURE_ASSERT` macro, consider using the standard library's `assert` as an alternative.
+- Removed `noexcept` specification from `Azure::Core::Context::IsCancelled()`.
+
+## 1.6.0 (2022-05-05)
+
+### Features Added
+
+- Add `Azure::Core::Http::Request` constructor overload to support payload and non-buffered response.
 
 ### Bugs Fixed
+
+- [[#3537]](https://github.com/Azure/azure-sdk-for-cpp/issues/3537) Updated field type `CurlTransportOptions.Proxy` from `std::string` to `Azure::Nullable<std::string>`. This allows libcurl to ignore the proxy settings from the environment when the string is empty.
+- [[#3548]](https://github.com/Azure/azure-sdk-for-cpp/issues/3548), [[#1098]](https://github.com/Azure/azure-sdk-for-cpp/issues/1098) Improve performance of the Http transport on Windows by reusing the same session handle across all requests.
+
+### Other Changes
+
+- [[#3581]](https://github.com/Azure/azure-sdk-for-cpp/issues/3581) Update log level in retry policy from warning to informational.
+- Updated the MD5 Hash implementation to work on top of OpenSSL 3.0. (A community contribution, courtesy of _[jepio](https://github.com/jepio)_)
+
+### Acknowledgments
+
+Thank you to our developer community members who helped to make Azure Core better with their contributions to this release:
+
+- Jeremi Piotrowski _([GitHub](https://github.com/jepio))_
+
+## 1.5.0 (2022-03-31)
+
+### Features Added
+
+- When a `RequestFailedException` exception is thrown, the `what()` method now includes information about the HTTP request which failed.
+- Adding option `WinHttpTransportOptions.IgnoreUnknownCertificateAuthority`. It can be used to disable verifying server certificate for the `WinHttpTransport`.
+
+### Breaking Changes
+
+- Enforce TLS 1.2 or greater for `CurlTransport` and `WinHttpTransport`.
+
+### Other Changes
+
+- Improve output message for `Azure::Core::Http::TransportException`.
+
+## 1.4.0 (2022-03-03)
+
+### Features Added
+
+- Stabilized the beta features and changes.
+
+## 1.4.0-beta.1 (2022-02-04)
+
+### Features Added
+
+- Enabled environment-controlled console logging on UWP.
+
+### Breaking Changes
+
+- Removed the `AzureNoReturnPath()` function from the global namespace, and deprecated the associated macros, such as `AZURE_ASSERT` since they are meant for internal use only. If your code was using the `AZURE_ASSERT` macro, consider using the standard library's `assert` as an alternative.
+- Removed the two parameter `RequestFailedException` ctor, it has no use case and wasn't intended for public use.
+
+### Bugs Fixed
+
+- Fixed `Azure::DateTime::Parse()` validation if the result is going to exceed `9999-12-31T23:59:59.9999999` due to time zone, leap second, or fractional digits rounding up adjustments.
+- [[#3224]](https://github.com/Azure/azure-sdk-for-cpp/issues/3224) Fixed intermittent crash on macOS when logging is turned on.
+- The `Base64::Decode` API will throw a `std::runtime_error` exception if presented with invalid inputs.
 
 ### Other Changes
 

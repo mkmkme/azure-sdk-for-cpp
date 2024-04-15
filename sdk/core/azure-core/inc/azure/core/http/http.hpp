@@ -61,10 +61,9 @@ namespace Azure { namespace Core { namespace Http {
      * @remark The transport policy will throw this error whenever the transport adapter fail to
      * perform a request.
      *
-     * @param whatArg The explanatory string.
+     * @param what The explanatory string.
      */
-    explicit TransportException(std::string const& whatArg)
-        : Azure::Core::RequestFailedException(whatArg)
+    explicit TransportException(std::string const& what) : Azure::Core::RequestFailedException(what)
     {
     }
   };
@@ -210,6 +209,7 @@ namespace Azure { namespace Core { namespace Http {
     // previously called
     void StartTry();
 
+  public:
     /**
      * @brief Construct an #Azure::Core::Http::Request.
      *
@@ -227,10 +227,9 @@ namespace Azure { namespace Core { namespace Http {
         : m_method(std::move(httpMethod)), m_url(std::move(url)), m_bodyStream(bodyStream),
           m_retryModeEnabled(false), m_shouldBufferResponse(shouldBufferResponse)
     {
-      _azure_ASSERT_MSG(bodyStream, "The bodyStream pointer cannot be null.");
+      AZURE_ASSERT_MSG(bodyStream, "The bodyStream pointer cannot be null.");
     }
 
-  public:
     /**
      * @brief Constructs a `%Request`.
      *
@@ -275,6 +274,16 @@ namespace Azure { namespace Core { namespace Http {
     void SetHeader(std::string const& name, std::string const& value);
 
     /**
+     * @brief Gets a specific HTTP header from an #Azure::Core::Http::Request.
+     *
+     * @param name The name for the header to be retrieved.
+     * @return The desired header, or an empty nullable if it is not found..
+     *
+     * @throw if \p name is an invalid header key.
+     */
+    Azure::Nullable<std::string> GetHeader(std::string const& name);
+
+    /**
      * @brief Remove an HTTP header.
      *
      * @param name HTTP header name.
@@ -286,10 +295,12 @@ namespace Azure { namespace Core { namespace Http {
      * @brief Get HttpMethod.
      *
      */
-    HttpMethod GetMethod() const;
+    HttpMethod const& GetMethod() const;
 
     /**
      * @brief Get HTTP headers.
+     *
+     * @remark Note that this function return a COPY of the headers for this request.
      *
      */
     CaseInsensitiveMap GetHeaders() const;

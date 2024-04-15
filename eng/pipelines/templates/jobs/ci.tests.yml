@@ -20,6 +20,8 @@ parameters:
   - name: CoverageEnabled
     type: boolean
     default: true
+    # Matrix generation:
+    # https://github.com/Azure/azure-sdk-tools/blob/main/eng/common/scripts/job-matrix/README.md
   - name: Matrix
     type: string
   - name: LineCoverageTarget
@@ -28,8 +30,9 @@ parameters:
   - name: BranchCoverageTarget
     type: number
     default: 70
-
-
+  - name: TestEnv
+    type: object
+    default: []    
   # Supplied by archetype-sdk-tests-generate.yml dynamic matrix generator
   - name: CloudConfig
     type: object
@@ -66,19 +69,14 @@ jobs:
       value: ""
     - name: CmakeArgs
       value: ""
+# Apply to all services running public pipeline
     - name: AZURE_TEST_MODE
       value: "PLAYBACK"
-# Even on playblack, tests will require ENV VARS
-    - name: AZURE_KEYVAULT_URL
-      value: "https://non-real-account.vault.azure.net"
-    - name: AZURE_KEYVAULT_HSM_URL
-      value: "https://non-real-account.vault.azure.net"
-    - name: AZURE_TENANT_ID
-      value: "non-real-tenant"
-    - name: AZURE_CLIENT_ID
-      value: "non-real-client"
-    - name: AZURE_CLIENT_SECRET
-      value: "non-real-secret"
+    - name: AZURE_LOG_LEVEL
+      value: "verbose"
+    - ${{ each testEnvVar in parameters.TestEnv }}:
+      - name: ${{ testEnvVar.Name }}
+        value: ${{ testEnvVar.Value }}
 
     steps:
       - template: /eng/common/pipelines/templates/steps/verify-agent-os.yml
@@ -99,8 +97,6 @@ jobs:
         displayName: Set Xcode version
 
       - template: /eng/pipelines/templates/steps/vcpkg.yml
-        parameters:
-          DependenciesVariableName: VcpkgInstall
 
       # Validate all the files are formatted correctly according to the
       # .clang-format file. This step runs on linux only only and assumes that
@@ -136,6 +132,7 @@ jobs:
 
       - template: /eng/pipelines/templates/steps/cmake-build.yml
         parameters:
+          ServiceDirectory: ${{ parameters.ServiceDirectory }}
           GenerateArgs: "$(CmakeArgs)"
           BuildArgs: "$(BuildArgs)"
           Env: "$(CmakeEnvArg)"
@@ -206,3 +203,71 @@ jobs:
             # Minimum baseline for branch coverage
             coverageThreshold: ${{ parameters.BranchCoverageTarget }}
           condition: and(succeededOrFailed(), eq(variables['CODE_COVERAGE'], 'enabled'), eq(variables['Skip.BranchCoverageEnforcement'], ''))
+
+      - task: Powershell@2
+        inputs:
+          filePath: $(Build.SourcesDirectory)/eng/scripts/Get-BinarySizes.ps1
+          arguments: >-
+            -ServiceDirectory ${{parameters.ServiceDirectory}}
+            -OsVMImage '$(OSVmImage)'
+            -CmakeEnvArg '$(CmakeEnvArg)'
+            -BuildArgs '$(BuildArgs)'
+            -Job '$(Agent.JobName)'
+            -BuildReason '$(Build.Reason)'
+            -SourceBranch '$(Build.SourceBranch)'
+            -ExtraLabels @{
+              MetricVersion = 1;
+            }
+          pwsh: true
+          workingDirectory: $(Pipeline.Workspace)
+        displayName: Report Binary Sizes
+
+      # Use the job name to create the artifact name for MAP file publishing.
+      # Attempts are also noted starting with 1
+      # "Validate Windows2019_UWP_debug_x86" -> "Windows2019_UWP_debug_x86_attempt_1"
+      - pwsh: |
+          $artifactName = "$(Agent.JobName)_attempt_$(System.JobAttempt)"
+          $parts = $artifactName -split ' '
+          if ($parts[1]) {
+            $artifactName = $parts[1]
+          }
+          Write-Host "##vso[task.setvariable variable=MapFileArtifactName;]$artifactName"
+        displayName: Set map file artifact name
+        condition: eq(variables['PublishMapFiles'], 'true')
+
+      - task: CopyFiles@2
+        inputs:
+          contents: "**/*.map"
+          targetFolder: $(Build.ArtifactStagingDirectory)
+          flattenFolders: true
+        condition: eq(variables['PublishMapFiles'], 'true')
+        displayName: Stage map files
+
+      - task: PublishPipelineArtifact@1
+        inputs:
+          artifactName: map-files-$(MapFileArtifactName)
+          path: $(Build.ArtifactStagingDirectory)
+        condition: eq(variables['PublishMapFiles'], 'true')
+        displayName : Publish map file artifacts
+        
+      - pwsh: |
+          $artifactName = "$(Agent.JobName)"
+          $parts = $artifactName -split ' '
+          if ($parts[1]) {
+            $artifactName = $parts[1]
+          }
+          Write-Host "##vso[task.setvariable variable=BomArtifactName;]$artifactName"
+        displayName: Set bom file artifact name
+        condition: succeededOrFailed()
+
+      - ${{if eq(variables['System.TeamProject'], 'internal') }}:
+        - task: AzureArtifacts.manifest-generator-task.manifest-generator-task.ManifestGeneratorTask@0
+          displayName: 'Generate BOM'
+          condition: succeededOrFailed()
+          inputs:
+            BuildDropPath: $(Build.ArtifactStagingDirectory)
+
+        - template: /eng/common/pipelines/templates/steps/publish-artifact.yml
+          parameters:
+            ArtifactPath: '$(Build.ArtifactStagingDirectory)/_manifest'
+            ArtifactName: 'bom_manifest_$(BomArtifactName)'

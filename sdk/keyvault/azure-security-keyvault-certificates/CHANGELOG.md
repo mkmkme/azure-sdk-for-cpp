@@ -1,6 +1,6 @@
 # Release History
 
-## 4.0.0-beta.2 (Unreleased)
+## 4.1.0-beta.2 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,27 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 4.1.0-beta.1 (2022-07-07)
+
+### Features Added
+
+- Keyvault 7.3 support added for Certificates.
+
+### Breaking Changes
+
+- Removed ServiceVersion type, replaced with ApiVersion field in the CertificateClientOptions type.
+
+## 4.0.0 (2022-06-07)
+
+### Breaking Changes
+
+- Renamed `keyvault_certificates.hpp` to `certificates.hpp`.
+
+## 4.0.0-beta.2 (2022-03-08)
+
+### Breaking Changes
+- Updated `CreateCertificateOperation.PollUntilDone()` (returned from `StartCreateCertificate()`)  to return the operation status instead of the newly created certificate.
 
 ## 4.0.0-beta.1 (2021-11-09)
 

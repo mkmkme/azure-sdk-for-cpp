@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#if defined(_MSC_VER)
-#define _CRT_SECURE_NO_WARNINGS
-#endif
+#include "get_env.hpp"
 
 #include <cstdio>
 #include <iostream>
@@ -19,7 +17,8 @@ std::string GetConnectionString()
   {
     return ConnectionString;
   }
-  const static std::string envConnectionString = std::getenv("AZURE_STORAGE_CONNECTION_STRING");
+  const static std::string envConnectionString
+      = std::getenv("AZURE_STORAGE_DATALAKE_CONNECTION_STRING");
   if (!envConnectionString.empty())
   {
     return envConnectionString;

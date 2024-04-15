@@ -184,6 +184,16 @@ namespace Azure { namespace Storage { namespace Sas {
     Filter = 1024,
 
     /**
+     * @brief Indicates that setting immutability policy is permitted.
+     */
+    SetImmutabilityPolicy = 2048,
+
+    /**
+     * @brief Indicates that permanent delete is permitted.
+     */
+    PermanentDelete = 4096,
+
+    /**
      * @brief Indicates that all permissions are set.
      */
     All = ~0,
@@ -244,6 +254,11 @@ namespace Azure { namespace Storage { namespace Sas {
      * restricted to operations on the specified resources.
      */
     AccountSasResource ResourceTypes;
+
+    /**
+     * @brief Optional encryption scope to use when sending requests authorized with this SAS url.
+     */
+    std::string EncryptionScope;
 
     /**
      * @brief Sets the permissions for an account SAS.

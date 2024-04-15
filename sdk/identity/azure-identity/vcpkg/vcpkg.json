@@ -14,7 +14,10 @@
     {
       "name": "azure-core-cpp",
       "default-features": false,
-      "version>=": "1.2.0"
+      "version>=": "1.4.0"
+    },
+    {
+      "name": "openssl"
     },
     {
       "name": "vcpkg-cmake",

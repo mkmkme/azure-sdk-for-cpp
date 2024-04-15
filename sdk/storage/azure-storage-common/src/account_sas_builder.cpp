@@ -8,6 +8,9 @@
 #include "azure/storage/common/crypt.hpp"
 
 namespace Azure { namespace Storage { namespace Sas {
+  namespace {
+    constexpr static const char* SasVersion = "2021-04-10";
+  }
 
   void AccountSasBuilder::SetPermissions(AccountSasPermissions permissions)
   {
@@ -29,6 +32,11 @@ namespace Azure { namespace Storage { namespace Sas {
     {
       Permissions += "x";
     }
+    if ((permissions & AccountSasPermissions::PermanentDelete)
+        == AccountSasPermissions::PermanentDelete)
+    {
+      Permissions += "y";
+    }
     if ((permissions & AccountSasPermissions::List) == AccountSasPermissions::List)
     {
       Permissions += "l";
@@ -48,6 +56,11 @@ namespace Azure { namespace Storage { namespace Sas {
     if ((permissions & AccountSasPermissions::Process) == AccountSasPermissions::Process)
     {
       Permissions += "p";
+    }
+    if ((permissions & AccountSasPermissions::SetImmutabilityPolicy)
+        == AccountSasPermissions::SetImmutabilityPolicy)
+    {
+      Permissions += "i";
     }
     if ((permissions & AccountSasPermissions::Tags) == AccountSasPermissions::Tags)
     {
@@ -100,16 +113,15 @@ namespace Azure { namespace Storage { namespace Sas {
 
     std::string stringToSign = credential.AccountName + "\n" + Permissions + "\n" + services + "\n"
         + resourceTypes + "\n" + startsOnStr + "\n" + expiresOnStr + "\n"
-        + (IPRange.HasValue() ? IPRange.Value() : "") + "\n" + protocol + "\n"
-        + _internal::DefaultSasVersion + "\n";
+        + (IPRange.HasValue() ? IPRange.Value() : "") + "\n" + protocol + "\n" + SasVersion + "\n"
+        + EncryptionScope + "\n";
 
     std::string signature = Azure::Core::Convert::Base64Encode(_internal::HmacSha256(
         std::vector<uint8_t>(stringToSign.begin(), stringToSign.end()),
         Azure::Core::Convert::Base64Decode(credential.GetAccountKey())));
 
     Azure::Core::Url builder;
-    builder.AppendQueryParameter(
-        "sv", _internal::UrlEncodeQueryParameter(_internal::DefaultSasVersion));
+    builder.AppendQueryParameter("sv", _internal::UrlEncodeQueryParameter(SasVersion));
     builder.AppendQueryParameter("ss", _internal::UrlEncodeQueryParameter(services));
     builder.AppendQueryParameter("srt", _internal::UrlEncodeQueryParameter(resourceTypes));
     builder.AppendQueryParameter("sp", _internal::UrlEncodeQueryParameter(Permissions));
@@ -124,6 +136,10 @@ namespace Azure { namespace Storage { namespace Sas {
     }
     builder.AppendQueryParameter("spr", _internal::UrlEncodeQueryParameter(protocol));
     builder.AppendQueryParameter("sig", _internal::UrlEncodeQueryParameter(signature));
+    if (!EncryptionScope.empty())
+    {
+      builder.AppendQueryParameter("ses", _internal::UrlEncodeQueryParameter(EncryptionScope));
+    }
 
     return builder.GetAbsoluteUrl();
   }

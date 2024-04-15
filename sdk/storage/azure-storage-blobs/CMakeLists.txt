@@ -1,6 +1,10 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # SPDX-License-Identifier: MIT
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake-modules")
+include(AzureVcpkg)
+az_vcpkg_integrate()
+
 cmake_minimum_required (VERSION 3.13)
 project(azure-storage-blobs LANGUAGES CXX)
 
@@ -8,29 +12,36 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake-modules")
+option(FETCH_SOURCE_DEPS "build source dependencies" OFF)
 
-include(AzureVcpkg)
 include(AzureVersion)
 include(AzureCodeCoverage)
 include(AzureTransportAdapters)
 include(AzureDoxygen)
 include(AzureGlobalCompileOptions)
 include(AzureConfigRTTI)
+include(AzureBuildTargetForCI)
 
-az_vcpkg_integrate()
-
-if(NOT AZ_ALL_LIBRARIES)
-  find_package(azure-storage-common-cpp "12.2.0" CONFIG QUIET)
+if(FETCH_SOURCE_DEPS)
+    set(AZ_ALL_LIBRARIES ON)
+    include(FolderList)
+    SetCompileOptions(STORAGE_BLOBS)
+    GetFolderList(STORAGE_BLOBS)
+    foreach(oneFolder IN LISTS BUILD_FOLDERS)
+        message("add folder ${oneFolder}")
+        add_subdirectory(${oneFolder} EXCLUDE_FROM_ALL)
+    endforeach()
+elseif(NOT AZ_ALL_LIBRARIES)
+  find_package(azure-storage-common-cpp CONFIG QUIET)
   if(NOT azure-storage-common-cpp_FOUND)
-    find_package(azure-storage-common-cpp "12.2.0" REQUIRED)
+    find_package(azure-storage-common-cpp REQUIRED)
   endif()
 endif()
 
 set(
-  AZURE_STORAGE_BLOB_HEADER
-    inc/azure/storage/blobs/protocol/blob_rest_client.hpp
+  AZURE_STORAGE_BLOBS_HEADER
     inc/azure/storage/blobs/append_blob_client.hpp
+    inc/azure/storage/blobs/blob_batch.hpp
     inc/azure/storage/blobs/blob_client.hpp
     inc/azure/storage/blobs/blob_container_client.hpp
     inc/azure/storage/blobs/blob_lease_client.hpp
@@ -39,27 +50,35 @@ set(
     inc/azure/storage/blobs/blob_sas_builder.hpp
     inc/azure/storage/blobs/blob_service_client.hpp
     inc/azure/storage/blobs/block_blob_client.hpp
+    inc/azure/storage/blobs/deferred_response.hpp
     inc/azure/storage/blobs/dll_import_export.hpp
     inc/azure/storage/blobs/page_blob_client.hpp
+    inc/azure/storage/blobs/rest_client.hpp
+    inc/azure/storage/blobs/rtti.hpp
     inc/azure/storage/blobs.hpp
+    src/private/avro_parser.hpp
+    src/private/package_version.hpp
 )
 
 set(
-  AZURE_STORAGE_BLOB_SOURCE
-    src/private/package_version.hpp
+  AZURE_STORAGE_BLOBS_SOURCE
     src/append_blob_client.cpp
+    src/blob_batch.cpp
     src/blob_client.cpp
     src/blob_container_client.cpp
     src/blob_lease_client.cpp
+    src/blob_options.cpp
     src/blob_responses.cpp
-    src/blob_rest_client.cpp
     src/blob_sas_builder.cpp
     src/blob_service_client.cpp
     src/block_blob_client.cpp
     src/page_blob_client.cpp
+    src/private/avro_parser.cpp
+    src/rest_client.cpp
 )
 
-add_library(azure-storage-blobs ${AZURE_STORAGE_BLOB_HEADER} ${AZURE_STORAGE_BLOB_SOURCE})
+add_library(azure-storage-blobs ${AZURE_STORAGE_BLOBS_HEADER} ${AZURE_STORAGE_BLOBS_SOURCE})
+create_per_service_target_build(storage azure-storage-blobs)
 
 # make sure that users can consume the project as a library.
 add_library(Azure::azure-storage-blobs ALIAS azure-storage-blobs)
@@ -92,30 +111,11 @@ az_rtti_setup(
 create_code_coverage(storage azure-storage-blobs azure-storage-test "tests?/*;samples?/*")
 
 if(BUILD_TESTING)
-  target_sources(
-    azure-storage-test
-      PRIVATE
-        test/ut/append_blob_client_test.cpp
-        test/ut/append_blob_client_test.hpp
-        test/ut/blob_container_client_test.cpp
-        test/ut/blob_container_client_test.hpp
-        test/ut/blob_sas_test.cpp
-        test/ut/blob_service_client_test.cpp
-        test/ut/block_blob_client_test.cpp
-        test/ut/block_blob_client_test.hpp
-        test/ut/macro_guard.cpp
-        test/ut/page_blob_client_test.cpp
-        test/ut/page_blob_client_test.hpp
-        test/ut/storage_retry_policy_test.cpp
-        test/ut/storage_timeout_test.cpp
-  )
-
-  target_link_libraries(azure-storage-test PRIVATE azure-storage-blobs)
-
+  add_subdirectory(test/ut)
   add_subdirectory(test/fault-injector)
 endif()
 
-if(BUILD_STORAGE_SAMPLES)
+if(BUILD_SAMPLES)
   add_subdirectory(samples)
 endif()
 

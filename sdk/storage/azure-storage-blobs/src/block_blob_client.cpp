@@ -22,6 +22,9 @@
 #include <azure/storage/common/internal/file_io.hpp>
 #include <azure/storage/common/internal/storage_switch_to_secondary_policy.hpp>
 #include <azure/storage/common/storage_common.hpp>
+#include <azure/storage/common/storage_exception.hpp>
+
+#include "private/avro_parser.hpp"
 
 namespace Azure { namespace Storage { namespace Blobs {
 
@@ -94,12 +97,30 @@ namespace Azure { namespace Storage { namespace Blobs {
       const UploadBlockBlobOptions& options,
       const Azure::Core::Context& context) const
   {
-    _detail::BlobRestClient::BlockBlob::UploadBlockBlobOptions protocolLayerOptions;
-    protocolLayerOptions.TransactionalContentHash = options.TransactionalContentHash;
-    protocolLayerOptions.HttpHeaders = options.HttpHeaders;
-    protocolLayerOptions.Metadata = options.Metadata;
-    protocolLayerOptions.Tags = options.Tags;
-    protocolLayerOptions.AccessTier = options.AccessTier;
+    _detail::BlockBlobClient::UploadBlockBlobOptions protocolLayerOptions;
+    if (options.TransactionalContentHash.HasValue())
+    {
+      if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Md5)
+      {
+        protocolLayerOptions.TransactionalContentMD5
+            = options.TransactionalContentHash.Value().Value;
+      }
+      else if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Crc64)
+      {
+        protocolLayerOptions.TransactionalContentCrc64
+            = options.TransactionalContentHash.Value().Value;
+      }
+    }
+    protocolLayerOptions.BlobContentType = options.HttpHeaders.ContentType;
+    protocolLayerOptions.BlobContentEncoding = options.HttpHeaders.ContentEncoding;
+    protocolLayerOptions.BlobContentLanguage = options.HttpHeaders.ContentLanguage;
+    protocolLayerOptions.BlobContentMD5 = options.HttpHeaders.ContentHash.Value;
+    protocolLayerOptions.BlobContentDisposition = options.HttpHeaders.ContentDisposition;
+    protocolLayerOptions.BlobCacheControl = options.HttpHeaders.CacheControl;
+    protocolLayerOptions.Metadata
+        = std::map<std::string, std::string>(options.Metadata.begin(), options.Metadata.end());
+    protocolLayerOptions.BlobTagsString = _detail::TagsToString(options.Tags);
+    protocolLayerOptions.Tier = options.AccessTier;
     protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
     protocolLayerOptions.IfModifiedSince = options.AccessConditions.IfModifiedSince;
     protocolLayerOptions.IfUnmodifiedSince = options.AccessConditions.IfUnmodifiedSince;
@@ -110,10 +131,17 @@ namespace Azure { namespace Storage { namespace Blobs {
     {
       protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
       protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
-      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
     }
     protocolLayerOptions.EncryptionScope = m_encryptionScope;
-    return _detail::BlobRestClient::BlockBlob::Upload(
+    if (options.ImmutabilityPolicy.HasValue())
+    {
+      protocolLayerOptions.ImmutabilityPolicyExpiry = options.ImmutabilityPolicy.Value().ExpiresOn;
+      protocolLayerOptions.ImmutabilityPolicyMode = options.ImmutabilityPolicy.Value().PolicyMode;
+    }
+    protocolLayerOptions.LegalHold = options.HasLegalHold;
+
+    return _detail::BlockBlobClient::Upload(
         *m_pipeline, m_blobUrl, content, protocolLayerOptions, context);
   }
 
@@ -141,6 +169,8 @@ namespace Azure { namespace Storage { namespace Blobs {
       uploadBlockBlobOptions.Metadata = options.Metadata;
       uploadBlockBlobOptions.Tags = options.Tags;
       uploadBlockBlobOptions.AccessTier = options.AccessTier;
+      uploadBlockBlobOptions.ImmutabilityPolicy = options.ImmutabilityPolicy;
+      uploadBlockBlobOptions.HasLegalHold = options.HasLegalHold;
       return Upload(contentStream, uploadBlockBlobOptions, context);
     }
 
@@ -191,6 +221,8 @@ namespace Azure { namespace Storage { namespace Blobs {
     commitBlockListOptions.Metadata = options.Metadata;
     commitBlockListOptions.Tags = options.Tags;
     commitBlockListOptions.AccessTier = options.AccessTier;
+    commitBlockListOptions.ImmutabilityPolicy = options.ImmutabilityPolicy;
+    commitBlockListOptions.HasLegalHold = options.HasLegalHold;
     auto commitBlockListResponse = CommitBlockList(blockIds, commitBlockListOptions, context);
 
     Models::UploadBlockBlobFromResult ret;
@@ -224,6 +256,8 @@ namespace Azure { namespace Storage { namespace Blobs {
         uploadBlockBlobOptions.Metadata = options.Metadata;
         uploadBlockBlobOptions.Tags = options.Tags;
         uploadBlockBlobOptions.AccessTier = options.AccessTier;
+        uploadBlockBlobOptions.ImmutabilityPolicy = options.ImmutabilityPolicy;
+        uploadBlockBlobOptions.HasLegalHold = options.HasLegalHold;
         return Upload(contentStream, uploadBlockBlobOptions, context);
       }
     }
@@ -282,6 +316,8 @@ namespace Azure { namespace Storage { namespace Blobs {
     commitBlockListOptions.Metadata = options.Metadata;
     commitBlockListOptions.Tags = options.Tags;
     commitBlockListOptions.AccessTier = options.AccessTier;
+    commitBlockListOptions.ImmutabilityPolicy = options.ImmutabilityPolicy;
+    commitBlockListOptions.HasLegalHold = options.HasLegalHold;
     auto commitBlockListResponse = CommitBlockList(blockIds, commitBlockListOptions, context);
 
     Models::UploadBlockBlobFromResult result;
@@ -295,24 +331,88 @@ namespace Azure { namespace Storage { namespace Blobs {
         std::move(result), std::move(commitBlockListResponse.RawResponse));
   }
 
+  Azure::Response<Models::UploadBlockBlobFromUriResult> BlockBlobClient::UploadFromUri(
+      const std::string& sourceUri,
+      const UploadBlockBlobFromUriOptions& options,
+      const Azure::Core::Context& context) const
+  {
+    _detail::BlockBlobClient::UploadBlockBlobFromUriOptions protocolLayerOptions;
+    protocolLayerOptions.CopySource = sourceUri;
+    protocolLayerOptions.CopySourceBlobProperties = options.CopySourceBlobProperties;
+    protocolLayerOptions.BlobContentType = options.HttpHeaders.ContentType;
+    protocolLayerOptions.BlobContentEncoding = options.HttpHeaders.ContentEncoding;
+    protocolLayerOptions.BlobContentLanguage = options.HttpHeaders.ContentLanguage;
+    protocolLayerOptions.BlobContentMD5 = options.HttpHeaders.ContentHash.Value;
+    protocolLayerOptions.BlobCacheControl = options.HttpHeaders.CacheControl;
+    protocolLayerOptions.BlobContentDisposition = options.HttpHeaders.ContentDisposition;
+    protocolLayerOptions.Metadata
+        = std::map<std::string, std::string>(options.Metadata.begin(), options.Metadata.end());
+    protocolLayerOptions.BlobTagsString = _detail::TagsToString(options.Tags);
+    protocolLayerOptions.Tier = options.AccessTier;
+    protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
+    protocolLayerOptions.IfMatch = options.AccessConditions.IfMatch;
+    protocolLayerOptions.IfNoneMatch = options.AccessConditions.IfNoneMatch;
+    protocolLayerOptions.IfModifiedSince = options.AccessConditions.IfModifiedSince;
+    protocolLayerOptions.IfUnmodifiedSince = options.AccessConditions.IfUnmodifiedSince;
+    protocolLayerOptions.IfTags = options.AccessConditions.TagConditions;
+    protocolLayerOptions.SourceIfMatch = options.SourceAccessConditions.IfMatch;
+    protocolLayerOptions.SourceIfNoneMatch = options.SourceAccessConditions.IfNoneMatch;
+    protocolLayerOptions.SourceIfModifiedSince = options.SourceAccessConditions.IfModifiedSince;
+    protocolLayerOptions.SourceIfUnmodifiedSince = options.SourceAccessConditions.IfUnmodifiedSince;
+    protocolLayerOptions.SourceIfTags = options.SourceAccessConditions.TagConditions;
+    if (options.TransactionalContentHash.HasValue())
+    {
+      if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Md5)
+      {
+        protocolLayerOptions.SourceContentMD5 = options.TransactionalContentHash.Value().Value;
+      }
+      else if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Crc64)
+      {
+        protocolLayerOptions.SourceContentcrc64 = options.TransactionalContentHash.Value().Value;
+      }
+    }
+    if (m_customerProvidedKey.HasValue())
+    {
+      protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
+      protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
+    }
+    protocolLayerOptions.EncryptionScope = m_encryptionScope;
+    protocolLayerOptions.CopySourceTags = options.CopySourceTagsMode;
+    return _detail::BlockBlobClient::UploadFromUri(
+        *m_pipeline, m_blobUrl, protocolLayerOptions, context);
+  }
+
   Azure::Response<Models::StageBlockResult> BlockBlobClient::StageBlock(
       const std::string& blockId,
       Azure::Core::IO::BodyStream& content,
       const StageBlockOptions& options,
       const Azure::Core::Context& context) const
   {
-    _detail::BlobRestClient::BlockBlob::StageBlockOptions protocolLayerOptions;
+    _detail::BlockBlobClient::StageBlockBlobBlockOptions protocolLayerOptions;
     protocolLayerOptions.BlockId = blockId;
-    protocolLayerOptions.TransactionalContentHash = options.TransactionalContentHash;
+    if (options.TransactionalContentHash.HasValue())
+    {
+      if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Md5)
+      {
+        protocolLayerOptions.TransactionalContentMD5
+            = options.TransactionalContentHash.Value().Value;
+      }
+      else if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Crc64)
+      {
+        protocolLayerOptions.TransactionalContentCrc64
+            = options.TransactionalContentHash.Value().Value;
+      }
+    }
     protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
     if (m_customerProvidedKey.HasValue())
     {
       protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
       protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
-      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
     }
     protocolLayerOptions.EncryptionScope = m_encryptionScope;
-    return _detail::BlobRestClient::BlockBlob::StageBlock(
+    return _detail::BlockBlobClient::StageBlock(
         *m_pipeline, m_blobUrl, content, protocolLayerOptions, context);
   }
 
@@ -322,11 +422,30 @@ namespace Azure { namespace Storage { namespace Blobs {
       const StageBlockFromUriOptions& options,
       const Azure::Core::Context& context) const
   {
-    _detail::BlobRestClient::BlockBlob::StageBlockFromUriOptions protocolLayerOptions;
+    _detail::BlockBlobClient::StageBlockBlobBlockFromUriOptions protocolLayerOptions;
     protocolLayerOptions.BlockId = blockId;
-    protocolLayerOptions.SourceUri = sourceUri;
-    protocolLayerOptions.SourceRange = options.SourceRange;
-    protocolLayerOptions.TransactionalContentHash = options.TransactionalContentHash;
+    protocolLayerOptions.SourceUrl = sourceUri;
+    if (options.SourceRange.HasValue())
+    {
+      std::string rangeStr = "bytes=" + std::to_string(options.SourceRange.Value().Offset) + "-";
+      if (options.SourceRange.Value().Length.HasValue())
+      {
+        rangeStr += std::to_string(
+            options.SourceRange.Value().Offset + options.SourceRange.Value().Length.Value() - 1);
+      }
+      protocolLayerOptions.SourceRange = rangeStr;
+    }
+    if (options.TransactionalContentHash.HasValue())
+    {
+      if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Md5)
+      {
+        protocolLayerOptions.SourceContentMD5 = options.TransactionalContentHash.Value().Value;
+      }
+      else if (options.TransactionalContentHash.Value().Algorithm == HashAlgorithm::Crc64)
+      {
+        protocolLayerOptions.SourceContentcrc64 = options.TransactionalContentHash.Value().Value;
+      }
+    }
     protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
     protocolLayerOptions.SourceIfModifiedSince = options.SourceAccessConditions.IfModifiedSince;
     protocolLayerOptions.SourceIfUnmodifiedSince = options.SourceAccessConditions.IfUnmodifiedSince;
@@ -336,10 +455,10 @@ namespace Azure { namespace Storage { namespace Blobs {
     {
       protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
       protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
-      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
     }
     protocolLayerOptions.EncryptionScope = m_encryptionScope;
-    return _detail::BlobRestClient::BlockBlob::StageBlockFromUri(
+    return _detail::BlockBlobClient::StageBlockFromUri(
         *m_pipeline, m_blobUrl, protocolLayerOptions, context);
   }
 
@@ -348,16 +467,18 @@ namespace Azure { namespace Storage { namespace Blobs {
       const CommitBlockListOptions& options,
       const Azure::Core::Context& context) const
   {
-    _detail::BlobRestClient::BlockBlob::CommitBlockListOptions protocolLayerOptions;
-    protocolLayerOptions.BlockList.reserve(blockIds.size());
-    for (const auto& id : blockIds)
-    {
-      protocolLayerOptions.BlockList.emplace_back(std::make_pair(Models::BlockType::Latest, id));
-    }
-    protocolLayerOptions.HttpHeaders = options.HttpHeaders;
-    protocolLayerOptions.Metadata = options.Metadata;
-    protocolLayerOptions.Tags = options.Tags;
-    protocolLayerOptions.AccessTier = options.AccessTier;
+    _detail::BlockBlobClient::CommitBlockBlobBlockListOptions protocolLayerOptions;
+    protocolLayerOptions.Blocks.Latest = blockIds;
+    protocolLayerOptions.BlobContentType = options.HttpHeaders.ContentType;
+    protocolLayerOptions.BlobContentEncoding = options.HttpHeaders.ContentEncoding;
+    protocolLayerOptions.BlobContentLanguage = options.HttpHeaders.ContentLanguage;
+    protocolLayerOptions.BlobContentMD5 = options.HttpHeaders.ContentHash.Value;
+    protocolLayerOptions.BlobContentDisposition = options.HttpHeaders.ContentDisposition;
+    protocolLayerOptions.BlobCacheControl = options.HttpHeaders.CacheControl;
+    protocolLayerOptions.Metadata
+        = std::map<std::string, std::string>(options.Metadata.begin(), options.Metadata.end());
+    protocolLayerOptions.BlobTagsString = _detail::TagsToString(options.Tags);
+    protocolLayerOptions.Tier = options.AccessTier;
     protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
     protocolLayerOptions.IfModifiedSince = options.AccessConditions.IfModifiedSince;
     protocolLayerOptions.IfUnmodifiedSince = options.AccessConditions.IfUnmodifiedSince;
@@ -368,10 +489,17 @@ namespace Azure { namespace Storage { namespace Blobs {
     {
       protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
       protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
-      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
     }
     protocolLayerOptions.EncryptionScope = m_encryptionScope;
-    return _detail::BlobRestClient::BlockBlob::CommitBlockList(
+    if (options.ImmutabilityPolicy.HasValue())
+    {
+      protocolLayerOptions.ImmutabilityPolicyExpiry = options.ImmutabilityPolicy.Value().ExpiresOn;
+      protocolLayerOptions.ImmutabilityPolicyMode = options.ImmutabilityPolicy.Value().PolicyMode;
+    }
+    protocolLayerOptions.LegalHold = options.HasLegalHold;
+
+    return _detail::BlockBlobClient::CommitBlockList(
         *m_pipeline, m_blobUrl, protocolLayerOptions, context);
   }
 
@@ -379,12 +507,155 @@ namespace Azure { namespace Storage { namespace Blobs {
       const GetBlockListOptions& options,
       const Azure::Core::Context& context) const
   {
-    _detail::BlobRestClient::BlockBlob::GetBlockListOptions protocolLayerOptions;
+    _detail::BlockBlobClient::GetBlockBlobBlockListOptions protocolLayerOptions;
     protocolLayerOptions.ListType = options.ListType;
     protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
     protocolLayerOptions.IfTags = options.AccessConditions.TagConditions;
-    return _detail::BlobRestClient::BlockBlob::GetBlockList(
+    return _detail::BlockBlobClient::GetBlockList(
         *m_pipeline, m_blobUrl, protocolLayerOptions, _internal::WithReplicaStatus(context));
+  }
+
+  Azure::Response<Models::QueryBlobResult> BlockBlobClient::Query(
+      const std::string& querySqlExpression,
+      const QueryBlobOptions& options,
+      const Azure::Core::Context& context) const
+  {
+    _detail::BlobClient::QueryBlobOptions protocolLayerOptions;
+    protocolLayerOptions.QueryRequest.QueryType = Models::_detail::QueryRequestQueryType::SQL;
+    protocolLayerOptions.QueryRequest.Expression = querySqlExpression;
+    if (options.InputTextConfiguration.m_format == Models::_detail::QueryFormatType::Delimited)
+    {
+      Models::_detail::DelimitedTextConfiguration c;
+      c.RecordSeparator = options.InputTextConfiguration.m_recordSeparator;
+      c.ColumnSeparator = options.InputTextConfiguration.m_columnSeparator;
+      c.FieldQuote = options.InputTextConfiguration.m_quotationCharacter;
+      c.EscapeChar = options.InputTextConfiguration.m_escapeCharacter;
+      c.HeadersPresent = options.InputTextConfiguration.m_hasHeaders;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.InputTextConfiguration.m_format;
+      q.Format.DelimitedTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.InputSerialization = std::move(q);
+    }
+    else if (options.InputTextConfiguration.m_format == Models::_detail::QueryFormatType::Json)
+    {
+      Models::_detail::JsonTextConfiguration c;
+      c.RecordSeparator = options.InputTextConfiguration.m_recordSeparator;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.InputTextConfiguration.m_format;
+      q.Format.JsonTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.InputSerialization = std::move(q);
+    }
+    else if (options.InputTextConfiguration.m_format == Models::_detail::QueryFormatType::Parquet)
+    {
+      Models::_detail::ParquetConfiguration c;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.InputTextConfiguration.m_format;
+      q.Format.ParquetTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.InputSerialization = std::move(q);
+    }
+    else if (options.InputTextConfiguration.m_format.ToString().empty())
+    {
+    }
+    else
+    {
+      AZURE_UNREACHABLE_CODE();
+    }
+    if (options.OutputTextConfiguration.m_format == Models::_detail::QueryFormatType::Delimited)
+    {
+      Models::_detail::DelimitedTextConfiguration c;
+      c.RecordSeparator = options.OutputTextConfiguration.m_recordSeparator;
+      c.ColumnSeparator = options.OutputTextConfiguration.m_columnSeparator;
+      c.FieldQuote = options.OutputTextConfiguration.m_quotationCharacter;
+      c.EscapeChar = options.OutputTextConfiguration.m_escapeCharacter;
+      c.HeadersPresent = options.OutputTextConfiguration.m_hasHeaders;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.OutputTextConfiguration.m_format;
+      q.Format.DelimitedTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.OutputSerialization = std::move(q);
+    }
+    else if (options.OutputTextConfiguration.m_format == Models::_detail::QueryFormatType::Json)
+    {
+      Models::_detail::JsonTextConfiguration c;
+      c.RecordSeparator = options.OutputTextConfiguration.m_recordSeparator;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.OutputTextConfiguration.m_format;
+      q.Format.JsonTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.OutputSerialization = std::move(q);
+    }
+    else if (options.OutputTextConfiguration.m_format == Models::_detail::QueryFormatType::Parquet)
+    {
+      Models::_detail::ParquetConfiguration c;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.OutputTextConfiguration.m_format;
+      q.Format.ParquetTextConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.OutputSerialization = std::move(q);
+    }
+    else if (options.OutputTextConfiguration.m_format == Models::_detail::QueryFormatType::Arrow)
+    {
+      Models::_detail::ArrowConfiguration c;
+      c.Schema = options.OutputTextConfiguration.m_schema;
+      Models::_detail::QuerySerialization q;
+      q.Format.Type = options.OutputTextConfiguration.m_format;
+      q.Format.ArrowConfiguration = std::move(c);
+      protocolLayerOptions.QueryRequest.OutputSerialization = std::move(q);
+    }
+    else if (options.InputTextConfiguration.m_format.ToString().empty())
+    {
+    }
+    else
+    {
+      AZURE_UNREACHABLE_CODE();
+    }
+
+    protocolLayerOptions.LeaseId = options.AccessConditions.LeaseId;
+    if (m_customerProvidedKey.HasValue())
+    {
+      protocolLayerOptions.EncryptionKey = m_customerProvidedKey.Value().Key;
+      protocolLayerOptions.EncryptionKeySha256 = m_customerProvidedKey.Value().KeyHash;
+      protocolLayerOptions.EncryptionAlgorithm = m_customerProvidedKey.Value().Algorithm.ToString();
+    }
+    protocolLayerOptions.EncryptionScope = m_encryptionScope;
+    protocolLayerOptions.IfModifiedSince = options.AccessConditions.IfModifiedSince;
+    protocolLayerOptions.IfUnmodifiedSince = options.AccessConditions.IfUnmodifiedSince;
+    protocolLayerOptions.IfMatch = options.AccessConditions.IfMatch;
+    protocolLayerOptions.IfNoneMatch = options.AccessConditions.IfNoneMatch;
+    protocolLayerOptions.IfTags = options.AccessConditions.TagConditions;
+    auto response = _detail::BlobClient::Query(
+        *m_pipeline, m_blobUrl, protocolLayerOptions, _internal::WithReplicaStatus(context));
+
+    const auto stautsCode = response.RawResponse->GetStatusCode();
+    const auto reasonPhrase = response.RawResponse->GetReasonPhrase();
+    const auto requestId
+        = response.RawResponse->GetHeaders().count(_internal::HttpHeaderRequestId) != 0
+        ? response.RawResponse->GetHeaders().at(_internal::HttpHeaderRequestId)
+        : std::string();
+
+    const auto clientRequestId
+        = response.RawResponse->GetHeaders().count(_internal::HttpHeaderClientRequestId) != 0
+        ? response.RawResponse->GetHeaders().at(_internal::HttpHeaderClientRequestId)
+        : std::string();
+
+    auto defaultErrorHandler
+        = [stautsCode, reasonPhrase, requestId, clientRequestId](BlobQueryError e) {
+            if (e.IsFatal)
+            {
+              StorageException exception("Fatal " + e.Name + " at " + std::to_string(e.Position));
+              exception.StatusCode = stautsCode;
+              exception.ReasonPhrase = reasonPhrase;
+              exception.RequestId = requestId;
+              exception.ClientRequestId = clientRequestId;
+              exception.ErrorCode = e.Name;
+              exception.Message = e.Description;
+
+              throw exception;
+            }
+          };
+
+    response.Value.BodyStream = std::make_unique<_detail::AvroStreamParser>(
+        std::move(response.Value.BodyStream),
+        options.ProgressHandler,
+        options.ErrorHandler ? options.ErrorHandler : defaultErrorHandler);
+    return response;
   }
 
 }}} // namespace Azure::Storage::Blobs

@@ -33,6 +33,8 @@ add_executable (
      ${AZURE_STORAGE_BLOBS_PERF_TEST_HEADER} ${AZURE_STORAGE_BLOBS_PERF_TEST_SOURCE}
 )
 
+create_per_service_target_build(storage azure-storage-blobs-perf)
+
 # Include the headers from the project.
 target_include_directories(
   azure-storage-blobs-perf

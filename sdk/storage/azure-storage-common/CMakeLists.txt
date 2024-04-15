@@ -1,6 +1,10 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # SPDX-License-Identifier: MIT
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake-modules")
+include(AzureVcpkg)
+az_vcpkg_integrate()
+
 cmake_minimum_required (VERSION 3.13)
 project(azure-storage-common LANGUAGES CXX)
 
@@ -8,22 +12,29 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake-modules")
+option(FETCH_SOURCE_DEPS "build source dependencies" OFF)
 
-include(AzureVcpkg)
 include(AzureVersion)
 include(AzureCodeCoverage)
 include(AzureTransportAdapters)
 include(AzureDoxygen)
 include(AzureGlobalCompileOptions)
 include(AzureConfigRTTI)
+include(AzureBuildTargetForCI)
 
-az_vcpkg_integrate()
-
-if(NOT AZ_ALL_LIBRARIES)
-  find_package(azure-core-cpp "1.0.0" CONFIG QUIET)
+if(FETCH_SOURCE_DEPS)
+    set(AZ_ALL_LIBRARIES ON)
+    include(FolderList)
+    SetCompileOptions(STORAGE_COMMON)
+    GetFolderList(STORAGE_COMMON)
+    foreach(oneFolder IN LISTS BUILD_FOLDERS)
+        message("add folder ${oneFolder}")
+        add_subdirectory(${oneFolder} EXCLUDE_FROM_ALL)
+    endforeach()
+elseif(NOT AZ_ALL_LIBRARIES)
+  find_package(azure-core-cpp "1.7.1" CONFIG QUIET)
   if(NOT azure-core-cpp_FOUND)
-    find_package(azure-core-cpp "1.0.0" REQUIRED)
+    find_package(azure-core-cpp "1.7.1" REQUIRED)
   endif()
 endif()
 
@@ -44,6 +55,7 @@ set(
     inc/azure/storage/common/internal/storage_service_version_policy.hpp
     inc/azure/storage/common/internal/storage_switch_to_secondary_policy.hpp
     inc/azure/storage/common/internal/xml_wrapper.hpp
+    inc/azure/storage/common/rtti.hpp
     inc/azure/storage/common/storage_common.hpp
     inc/azure/storage/common/storage_credential.hpp
     inc/azure/storage/common/storage_exception.hpp
@@ -66,6 +78,7 @@ set(
 )
 
 add_library(azure-storage-common ${AZURE_STORAGE_COMMON_HEADER} ${AZURE_STORAGE_COMMON_SOURCE})
+create_per_service_target_build(storage azure-storage-common)
 
 # make sure that users can consume the project as a library.
 add_library(Azure::azure-storage-common ALIAS azure-storage-common)
@@ -111,21 +124,7 @@ az_rtti_setup(
 create_code_coverage(storage azure-storage-common azure-storage-test "tests?/*;samples?/*")
 
 if(BUILD_TESTING)
-  target_sources(
-    azure-storage-test
-      PRIVATE
-        test/bearer_token_test.cpp
-        test/crypt_functions_test.cpp
-        test/metadata_test.cpp
-        test/storage_credential_test.cpp
-        test/test_base.cpp
-        test/test_base.hpp
-  )
-
-  if (MSVC)
-    target_compile_options(azure-storage-test PUBLIC /wd6326 /wd26495 /wd26812)
-  endif()
-
-  target_link_libraries(azure-storage-test PRIVATE azure-identity)
-  target_include_directories(azure-storage-test PRIVATE test)
+  add_subdirectory(test/ut)
 endif()
+
+unset(FETCH_SOURCE_DEPS CACHE)

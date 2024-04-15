@@ -15,7 +15,7 @@
 
 #include <azure/core.hpp>
 #include <azure/core/internal/http/pipeline.hpp>
-#include <azure/keyvault/keyvault_keys.hpp>
+#include <azure/keyvault/keys.hpp>
 
 #include <cstdio>
 #include <string>
@@ -92,7 +92,16 @@ namespace Azure { namespace Security { namespace KeyVault { namespace Keys { nam
       }
 
       result = new char[std::string(fakeKey).size() + keyType.size()];
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
       std::sprintf(result, fakeKey, keyType.c_str());
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
       return result;
     }
   };

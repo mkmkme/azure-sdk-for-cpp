@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <azure/core/context.hpp>
+#include <azure/core/tracing/tracing.hpp>
 
 #include <chrono>
 #include <memory>
@@ -30,7 +31,7 @@ TEST(Context, BasicBool)
 
   // New context from previous
   auto c2 = context.WithValue(key, true);
-  bool value;
+  bool value{};
   EXPECT_TRUE(c2.TryGetValue<bool>(key, value));
   EXPECT_TRUE(value == true);
 
@@ -437,7 +438,7 @@ TEST(Context, Deadline)
   }
 }
 
-#if defined(AZ_CORE_RTTI)
+#if defined(AZ_CORE_RTTI) && GTEST_HAS_DEATH_TEST
 TEST(Context, PreCondition)
 {
   // Get a mismatch type from the context
@@ -478,6 +479,7 @@ TEST(Context, KeyTypePairPrecondition)
   EXPECT_FALSE(c2.TryGetValue<std::string>(keyNotFound, strValue));
   EXPECT_FALSE(c2.TryGetValue<int>(keyNotFound, intValue));
 
+#if GTEST_HAS_DEATH_TEST
 // Type-safe assert requires RTTI build
 #if defined(AZ_CORE_RTTI)
 #if defined(NDEBUG)
@@ -488,12 +490,14 @@ TEST(Context, KeyTypePairPrecondition)
       c2.TryGetValue<std::string>(key, strValue), "Type mismatch for Context::TryGetValue");
 #endif
 #endif
+#endif
 
   EXPECT_TRUE(strValue == "previous value");
 
   EXPECT_TRUE(c2.TryGetValue<int>(key, intValue));
   EXPECT_TRUE(intValue == 123);
 
+#if GTEST_HAS_DEATH_TEST
 // Type-safe assert requires RTTI build
 #if defined(AZ_CORE_RTTI)
 #if defined(NDEBUG)
@@ -503,9 +507,33 @@ TEST(Context, KeyTypePairPrecondition)
   ASSERT_DEATH(c3.TryGetValue<int>(key, intValue), "Type mismatch for Context::TryGetValue");
 #endif
 #endif
+#endif
 
   EXPECT_TRUE(intValue == 123);
 
   EXPECT_TRUE(c3.TryGetValue<std::string>(key, strValue));
   EXPECT_TRUE(strValue == s);
+}
+
+TEST(Context, SetTracingProvider)
+{
+  class TestTracingProvider final : public Azure::Core::Tracing::TracerProvider {
+  public:
+    TestTracingProvider() : TracerProvider() {}
+    ~TestTracingProvider() {}
+    std::shared_ptr<Azure::Core::Tracing::_internal::Tracer> CreateTracer(
+        std::string const&,
+        std::string const&) const override
+    {
+      throw std::runtime_error("Not implemented");
+    };
+  };
+
+  Context context;
+  context.SetTracerProvider(nullptr);
+
+  // Verify we can round trip a tracing provider through the context.
+  auto testProvider = std::make_shared<TestTracingProvider>();
+  context.SetTracerProvider(testProvider);
+  EXPECT_EQ(testProvider, context.GetTracerProvider());
 }

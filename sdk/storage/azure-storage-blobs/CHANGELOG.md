@@ -1,16 +1,75 @@
 # Release History
 
-## 12.3.0 (Unreleased)
+## 12.6.0-beta.2 (Unreleased)
 
 ### Features Added
-
-- New API: `BlobClient::CopyFromUri()`.
 
 ### Breaking Changes
 
 ### Bugs Fixed
 
+- Empty file or existing file won't be created/overwritten if the blob to be downloaded doesn't exist.
+
 ### Other Changes
+
+## 12.6.0-beta.1 (2022-08-09)
+
+### Features Added
+
+- Bumped up API version to `2021-04-10`.
+- Added support for encryption scope SAS (`ses` query parameter in SAS token).
+- Added encryption scope support for `BlobClient::CopyFromUri()`.
+- Added support for filtering blobs on container level.
+- Added support for tags copy mode (replace or copy from source) when copying blobs from URL.
+- Added support for permanent delete permission in SAS.
+
+### Bugs Fixed
+
+- Fixed listing blobs failure when blob name contains invalid characters in xml.
+
+## 12.5.0 (2022-08-08)
+
+### Features Added
+
+- Features in `12.5.0.beta1` and `12.5.0.beta2` are now generally available.
+
+## 12.5.0-beta.2 (2022-07-07)
+
+### Features Added
+
+- Added support for Blob Batch.
+
+## 12.5.0-beta.1 (2022-06-07)
+
+### Features Added
+
+- Bumped up API version to `2020-10-02`.
+- Added new API: `BlockBlobClient::Query()`.
+- Added `ContinuationToken` and `PageSizeHint` in `GetPageRangesOptions`.
+- Added support for listing system containers.
+- Added support for listing deleted root blob with active versions.
+
+## 12.4.0 (2022-04-06)
+
+### Other changes
+
+- No public changes in this release.
+
+## 12.4.0-beta.1 (2022-03-09)
+
+### Features Added
+
+- Bumped up API version to `2020-08-04`.
+- Bumped up SAS token version to `2020-08-04`.
+- Added support for immutability policy.
+- New API: `BlobClient::CopyFromUri()`, `BlobClient::SetImmutabilityPolicy()`, `BlobClient::DeleteImmutabilityPolicy()`, `BlobClient::SetLegalHold()`, `BlockBlobClient::UploadFromUri()` and `BlobServiceClient::RenameBlobContainer()`.
+- Added lease access condition support for `BlobClient::SetTags()` and `BlobClient::GetTags()`.
+
+## 12.3.0 (2022-02-14)
+
+### Features Added
+
+- Added `VersionId` in `SetBlobMetadataResult`.
 
 ## 12.2.1 (2021-11-08)
 

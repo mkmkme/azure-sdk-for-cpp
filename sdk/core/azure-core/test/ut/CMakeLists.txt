@@ -46,8 +46,10 @@ add_executable (
     ${CURL_OPTIONS_TESTS}
     ${CURL_SESSION_TESTS}
     datetime_test.cpp
-    environmentLogLevelListener_test.cpp
+    environment_log_level_listener_test.cpp
+    extendable_enumeration_test.cpp
     etag_test.cpp
+    exception_test.cpp
     http_test.cpp
     http_test.hpp
     http_method_test.cpp
@@ -64,9 +66,11 @@ add_executable (
     operation_status_test.cpp
     pipeline_test.cpp
     policy_test.cpp
+    request_activity_policy_test.cpp
     request_id_policy_test.cpp
     response_t_test.cpp
     retry_policy_test.cpp
+    service_tracing_test.cpp
     sha_test.cpp
     simplified_header_test.cpp
     string_test.cpp
@@ -76,7 +80,6 @@ add_executable (
     transport_adapter_implementation_test.cpp
     url_test.cpp
     uuid_test.cpp
-    exception_test.cpp
 )
 
 if (MSVC)
@@ -100,11 +103,16 @@ target_include_directories (azure-core-test PRIVATE $<BUILD_INTERFACE:${CMAKE_CU
 
 target_link_libraries(azure-core-test PRIVATE azure-core gtest gmock)
 
+create_map_file(azure-core-test azure-core-test.map)
+
 ## Global context test
 add_executable (
   azure-core-global-context-test
   global_context_test.cpp
 )
+
+create_map_file(azure-core-global-context-test azure-core-global-context-test.map)
+
 if (MSVC)
   # Disable gtest warnings for MSVC
   target_compile_options(azure-core-global-context-test PUBLIC /wd26495 /wd26812 /wd6326 /wd28204 /wd28020 /wd6330 /wd4389)
@@ -127,6 +135,8 @@ if(BUILD_TRANSPORT_CURL)
     azure-core-libcurl-test
     azure_libcurl_core_main_test.cpp
   )
+
+  create_map_file(azure-core-libcurl-test azure-core-libcurl-test.map)
 
   if (MSVC)
     # warning C4389: '==': signed/unsigned mismatch

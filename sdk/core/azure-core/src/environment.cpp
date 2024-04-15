@@ -4,7 +4,6 @@
 #include "azure/core/internal/environment.hpp"
 
 #include "azure/core/platform.hpp"
-
 #if defined(AZ_PLATFORM_WINDOWS)
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
@@ -13,9 +12,9 @@
 #define NOMINMAX
 #endif
 
-#include <windows.h>
-
 #include <vector>
+
+#include <windows.h>
 #else
 #include <stdlib.h>
 #endif

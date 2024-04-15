@@ -8,17 +8,21 @@
 
 #pragma once
 
+#include "azure/core/azure_assert.hpp"
 #include "azure/core/datetime.hpp"
 #include "azure/core/dll_import_export.hpp"
-#include "azure/core/internal/azure_assert.hpp"
 #include "azure/core/rtti.hpp"
-
 #include <atomic>
 #include <chrono>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+
+// Forward declare TracerProvider to resolve an include file dependency ordering problem.
+namespace Azure { namespace Core { namespace Tracing {
+  class TracerProvider;
+}}} // namespace Azure::Core::Tracing
 
 namespace Azure { namespace Core {
 
@@ -30,11 +34,9 @@ namespace Azure { namespace Core {
     /**
      * @brief Constructs an `OperationCancelledException` with message string as the description.
      *
-     * @param whatArg The explanatory string.
+     * @param what The explanatory string.
      */
-    explicit OperationCancelledException(std::string const& whatArg) : std::runtime_error(whatArg)
-    {
-    }
+    explicit OperationCancelledException(std::string const& what) : std::runtime_error(what) {}
   };
 
   /**
@@ -78,6 +80,7 @@ namespace Azure { namespace Core {
     {
       std::shared_ptr<ContextSharedState> Parent;
       std::atomic<DateTime::rep> Deadline;
+      std::shared_ptr<Azure::Core::Tracing::TracerProvider> TraceProvider;
       Context::Key Key;
       std::shared_ptr<void> Value;
 #if defined(AZ_CORE_RTTI)
@@ -210,7 +213,7 @@ namespace Azure { namespace Core {
         if (ptr->Key == key)
         {
 #if defined(AZ_CORE_RTTI)
-          _azure_ASSERT_MSG(
+          AZURE_ASSERT_MSG(
               typeid(T) == ptr->ValueType, "Type mismatch for Context::TryGetValue().");
 #endif
 
@@ -235,7 +238,7 @@ namespace Azure { namespace Core {
      * @brief Checks if the context is cancelled.
      * @return `true` if this context is cancelled; otherwise, `false`.
      */
-    bool IsCancelled() const noexcept { return GetDeadline() < std::chrono::system_clock::now(); }
+    bool IsCancelled() const { return GetDeadline() < std::chrono::system_clock::now(); }
 
     /**
      * @brief Checks if the context is cancelled.
@@ -248,6 +251,22 @@ namespace Azure { namespace Core {
       {
         throw OperationCancelledException("Request was cancelled by context.");
       }
+    }
+
+    /**
+     * @brief Returns the tracer provider for the current context.
+     */
+    std::shared_ptr<Tracing::TracerProvider> GetTracerProvider()
+    {
+      return m_contextSharedState->TraceProvider;
+    }
+
+    /**
+     * @brief Sets the tracer provider for the current context.
+     */
+    void SetTracerProvider(std::shared_ptr<Tracing::TracerProvider> tracerProvider)
+    {
+      m_contextSharedState->TraceProvider = tracerProvider;
     }
 
     /**

@@ -207,7 +207,7 @@ namespace Azure { namespace Storage { namespace _internal {
       }
       case WS_XML_NODE_TYPE_END_ELEMENT:
         moveToNext();
-        return XmlNode{XmlNodeType::EndTag, std::string()};
+        return XmlNode{XmlNodeType::EndTag};
       case WS_XML_NODE_TYPE_EOF:
         return XmlNode{XmlNodeType::End};
       case WS_XML_NODE_TYPE_CDATA:
@@ -292,7 +292,7 @@ namespace Azure { namespace Storage { namespace _internal {
     auto context = static_cast<XmlWriterContext*>(m_context);
     if (node.Type == XmlNodeType::StartTag)
     {
-      if (!node.Value.empty())
+      if (node.HasValue)
       {
         Write(XmlNode{XmlNodeType::StartTag, std::move(node.Name)});
         Write(XmlNode{XmlNodeType::Text, std::string(), std::move(node.Value)});
@@ -366,18 +366,22 @@ namespace Azure { namespace Storage { namespace _internal {
     auto context = static_cast<XmlWriterContext*>(m_context);
 
     BOOL boolValueTrue = TRUE;
-    WS_XML_WRITER_PROPERTY writerProperty;
-    writerProperty.id = WS_XML_WRITER_PROPERTY_WRITE_DECLARATION;
-    writerProperty.value = &boolValueTrue;
-    writerProperty.valueSize = sizeof(boolValueTrue);
+    WS_XML_WRITER_PROPERTY writerProperty[2];
+    writerProperty[0].id = WS_XML_WRITER_PROPERTY_WRITE_DECLARATION;
+    writerProperty[0].value = &boolValueTrue;
+    writerProperty[0].valueSize = sizeof(boolValueTrue);
+    writerProperty[1].id = WS_XML_WRITER_PROPERTY_BUFFER_MAX_SIZE;
+    ULONG maxBufferSize = 256 * 1024 * 1024UL;
+    writerProperty[1].value = &maxBufferSize;
+    writerProperty[1].valueSize = sizeof(maxBufferSize);
     void* xml = nullptr;
     ULONG xmlLength = 0;
     HRESULT ret = WsWriteXmlBufferToBytes(
         context->writer,
         context->buffer,
         nullptr,
-        &writerProperty,
-        1,
+        writerProperty,
+        sizeof(writerProperty) / sizeof(writerProperty[0]),
         context->heap,
         &xml,
         &xmlLength,
@@ -402,6 +406,13 @@ namespace Azure { namespace Storage { namespace _internal {
   {
     static std::once_flag flag;
     std::call_once(flag, [] { xmlCleanupParser(); });
+  }
+
+  XmlReader::XmlReader(XmlReader&& other) noexcept { *this = std::move(other); }
+  XmlReader& XmlReader::operator=(XmlReader&& other) noexcept
+  {
+    m_context = std::move(other.m_context);
+    return *this;
   }
 
   using ReaderPtr = std::unique_ptr<xmlTextReader, decltype(&xmlFreeTextReader)>;
@@ -581,7 +592,7 @@ namespace Azure { namespace Storage { namespace _internal {
     xmlTextWriterPtr writer = m_context->writer.get();
     if (node.Type == XmlNodeType::StartTag)
     {
-      if (node.Value.empty())
+      if (!node.HasValue)
       {
         xmlTextWriterStartElement(writer, BadCast(node.Name.data()));
       }

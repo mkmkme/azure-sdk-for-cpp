@@ -201,15 +201,36 @@ std::string GetHeadersAsString(Azure::Core::Http::Request const& request)
 void GetErrorAndThrow(const std::string& exceptionMessage)
 {
   DWORD error = GetLastError();
-  throw Azure::Core::Http::TransportException(
-      exceptionMessage + " Error Code: " + std::to_string(error) + ".");
+  std::string errorMessage = exceptionMessage + " Error Code: " + std::to_string(error);
+
+  char* errorMsg = nullptr;
+  if (FormatMessage(
+          FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+          GetModuleHandle("winhttp.dll"),
+          error,
+          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+          reinterpret_cast<LPSTR>(&errorMsg),
+          0,
+          nullptr)
+      != 0)
+  {
+    // Use a unique_ptr to manage the lifetime of errorMsg.
+    std::unique_ptr<char, decltype(&LocalFree)> errorString(errorMsg, &LocalFree);
+    errorMsg = nullptr;
+
+    errorMessage += ": ";
+    errorMessage += errorString.get();
+  }
+  errorMessage += '.';
+
+  throw Azure::Core::Http::TransportException(errorMessage);
 }
 
-void WinHttpTransport::CreateSessionHandle(std::unique_ptr<_detail::HandleManager>& handleManager)
+HINTERNET WinHttpTransport::CreateSessionHandle()
 {
   // Use WinHttpOpen to obtain a session handle.
   // The dwFlags is set to 0 - all WinHTTP functions are performed synchronously.
-  handleManager->m_sessionHandle = WinHttpOpen(
+  HINTERNET sessionHandle = WinHttpOpen(
       NULL, // Do not use a fallback user-agent string, and only rely on the header within the
             // request itself.
       WINHTTP_ACCESS_TYPE_NO_PROXY,
@@ -217,7 +238,7 @@ void WinHttpTransport::CreateSessionHandle(std::unique_ptr<_detail::HandleManage
       WINHTTP_NO_PROXY_BYPASS,
       0);
 
-  if (!handleManager->m_sessionHandle)
+  if (!sessionHandle)
   {
     // Errors include:
     // ERROR_WINHTTP_INTERNAL_ERROR
@@ -232,20 +253,29 @@ void WinHttpTransport::CreateSessionHandle(std::unique_ptr<_detail::HandleManage
 #ifdef WINHTTP_OPTION_TCP_FAST_OPEN
   BOOL tcp_fast_open = TRUE;
   WinHttpSetOption(
-      handleManager->m_sessionHandle,
-      WINHTTP_OPTION_TCP_FAST_OPEN,
-      &tcp_fast_open,
-      sizeof(tcp_fast_open));
+      sessionHandle, WINHTTP_OPTION_TCP_FAST_OPEN, &tcp_fast_open, sizeof(tcp_fast_open));
 #endif
 
 #ifdef WINHTTP_OPTION_TLS_FALSE_START
-  BOOL tcp_false_start = TRUE;
+  BOOL tls_false_start = TRUE;
   WinHttpSetOption(
-      handleManager->m_sessionHandle,
-      WINHTTP_OPTION_TLS_FALSE_START,
-      &tcp_false_start,
-      sizeof(tcp_false_start));
+      sessionHandle, WINHTTP_OPTION_TLS_FALSE_START, &tls_false_start, sizeof(tls_false_start));
 #endif
+
+  // Enforce TLS version 1.2
+  auto tlsOption = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+  if (!WinHttpSetOption(
+          sessionHandle, WINHTTP_OPTION_SECURE_PROTOCOLS, &tlsOption, sizeof(tlsOption)))
+  {
+    GetErrorAndThrow("Error while enforcing TLS 1.2 for connection request.");
+  }
+
+  return sessionHandle;
+}
+
+WinHttpTransport::WinHttpTransport(WinHttpTransportOptions const& options)
+    : m_options(options), m_sessionHandle(CreateSessionHandle())
+{
 }
 
 void WinHttpTransport::CreateConnectionHandle(
@@ -259,7 +289,7 @@ void WinHttpTransport::CreateConnectionHandle(
   // Specify an HTTP server.
   // This function always operates synchronously.
   handleManager->m_connectionHandle = WinHttpConnect(
-      handleManager->m_sessionHandle,
+      m_sessionHandle,
       StringToWideString(handleManager->m_request.GetUrl().GetHost()).c_str(),
       port == 0 ? INTERNET_DEFAULT_PORT : port,
       0);
@@ -282,6 +312,9 @@ void WinHttpTransport::CreateRequestHandle(std::unique_ptr<_detail::HandleManage
 {
   const std::string& path = handleManager->m_request.GetUrl().GetRelativeUrl();
   HttpMethod requestMethod = handleManager->m_request.GetMethod();
+  bool const requestSecureHttp(
+      !Azure::Core::_internal::StringExtensions::LocaleInvariantCaseInsensitiveEqual(
+          handleManager->m_request.GetUrl().GetScheme(), HttpScheme));
 
   // Create an HTTP request handle.
   handleManager->m_requestHandle = WinHttpOpenRequest(
@@ -293,10 +326,7 @@ void WinHttpTransport::CreateRequestHandle(std::unique_ptr<_detail::HandleManage
       NULL, // Use HTTP/1.1
       WINHTTP_NO_REFERER,
       WINHTTP_DEFAULT_ACCEPT_TYPES, // No media types are accepted by the client
-      Azure::Core::_internal::StringExtensions::LocaleInvariantCaseInsensitiveEqual(
-          handleManager->m_request.GetUrl().GetScheme(), HttpScheme)
-          ? 0
-          : WINHTTP_FLAG_SECURE); // Uses secure transaction semantics (SSL/TLS)
+      requestSecureHttp ? WINHTTP_FLAG_SECURE : 0); // Uses secure transaction semantics (SSL/TLS)
 
   if (!handleManager->m_requestHandle)
   {
@@ -308,6 +338,33 @@ void WinHttpTransport::CreateRequestHandle(std::unique_ptr<_detail::HandleManage
     // ERROR_WINHTTP_UNRECOGNIZED_SCHEME
     // ERROR_NOT_ENOUGH_MEMORY
     GetErrorAndThrow("Error while getting a request handle.");
+  }
+
+  if (requestSecureHttp)
+  {
+    // If the service requests TLS client certificates, we want to let the WinHTTP APIs know that
+    // it's ok to initiate the request without a client certificate.
+    //
+    // Note: If/When TLS client certificate support is added to the pipeline, this line may need to
+    // be revisited.
+    if (!WinHttpSetOption(
+            handleManager->m_requestHandle,
+            WINHTTP_OPTION_CLIENT_CERT_CONTEXT,
+            WINHTTP_NO_CLIENT_CERT_CONTEXT,
+            0))
+    {
+      GetErrorAndThrow("Error while setting client cert context to ignore.");
+    }
+  }
+
+  if (m_options.IgnoreUnknownCertificateAuthority)
+  {
+    auto option = SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+    if (!WinHttpSetOption(
+            handleManager->m_requestHandle, WINHTTP_OPTION_SECURITY_FLAGS, &option, sizeof(option)))
+    {
+      GetErrorAndThrow("Error while setting ignore unknown server certificate.");
+    }
   }
 }
 
@@ -565,17 +622,27 @@ std::unique_ptr<RawResponse> WinHttpTransport::SendRequestAndGetResponse(
   std::string reasonPhrase;
   DWORD sizeOfReasonPhrase = sizeOfHeaders;
 
-  if (WinHttpQueryHeaders(
-          handleManager->m_requestHandle,
-          WINHTTP_QUERY_STATUS_TEXT,
-          WINHTTP_HEADER_NAME_BY_INDEX,
-          outputBuffer.data(),
-          &sizeOfReasonPhrase,
-          WINHTTP_NO_HEADER_INDEX))
+  // HTTP/2 does not support reason phrase, refer to
+  // https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.4.
+  if (majorVersion == 1)
   {
-    start = outputBuffer.begin();
-    reasonPhrase
-        = WideStringToString(std::wstring(start, start + sizeOfReasonPhrase / sizeof(WCHAR)));
+    if (WinHttpQueryHeaders(
+            handleManager->m_requestHandle,
+            WINHTTP_QUERY_STATUS_TEXT,
+            WINHTTP_HEADER_NAME_BY_INDEX,
+            outputBuffer.data(),
+            &sizeOfReasonPhrase,
+            WINHTTP_NO_HEADER_INDEX))
+    {
+      // even with HTTP/1.1, we cannot assume that reason phrase is set since it is optional
+      // according to https://www.rfc-editor.org/rfc/rfc2616.html#section-6.1.1.
+      if (sizeOfReasonPhrase > 0)
+      {
+        start = outputBuffer.begin();
+        reasonPhrase
+            = WideStringToString(std::wstring(start, start + sizeOfReasonPhrase / sizeof(WCHAR)));
+      }
+    }
   }
 
   // Allocate the instance of the response on the heap with a shared ptr so this memory gets
@@ -597,7 +664,6 @@ std::unique_ptr<RawResponse> WinHttpTransport::Send(Request& request, Context co
 {
   auto handleManager = std::make_unique<_detail::HandleManager>(request, context);
 
-  CreateSessionHandle(handleManager);
   CreateConnectionHandle(handleManager);
   CreateRequestHandle(handleManager);
 

@@ -1,15 +1,14 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#if defined(_MSC_VER)
-#define _CRT_SECURE_NO_WARNINGS
-#endif
+#include "get_env.hpp"
 
 #include <cstdio>
 #include <iostream>
 #include <stdexcept>
 
 #include <azure/storage/blobs.hpp>
+#include <azure/storage/common/crypt.hpp>
 
 std::string GetConnectionString()
 {

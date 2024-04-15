@@ -1,6 +1,6 @@
 # Release History
 
-## 12.3.0-beta.1 (Unreleased)
+## 12.3.0-beta.2 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,38 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 12.3.0-beta.1 (2022-08-09)
+
+### Features Added
+
+- Added support for encryption scope SAS (`ses` query parameter in SAS token).
+- Added support for permanent delete permission in SAS.
+
+## 12.2.4 (2022-06-07)
+
+### Bugs Fixed
+
+- Fixed a bug where text of XML element cannot be empty.
+
+## 12.2.3 (2022-04-06)
+
+### Bugs Fixed
+
+- Fixed a bug where we got error when XML request body is too big.
+
+## 12.2.2 (2022-03-09)
+
+### Features Added
+
+- Added `SetImmutabilityPolicy` permission for account SAS.
+- Bumped up SAS token service version to `2020-08-04`.
+
+## 12.2.1 (2022-02-14)
+
+### Other Changes
+
+- No public changes in this release.
 
 ## 12.2.0 (2021-09-08)
 

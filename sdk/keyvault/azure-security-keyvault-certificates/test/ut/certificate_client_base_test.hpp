@@ -12,7 +12,7 @@
 #include "../src/private/certificate_serializers.hpp"
 #include <azure/core/test/test_base.hpp>
 #include <azure/identity/client_secret_credential.hpp>
-#include <azure/keyvault/keyvault_certificates.hpp>
+#include <azure/keyvault/certificates.hpp>
 #include <chrono>
 #include <thread>
 
@@ -77,13 +77,21 @@ namespace Azure {
       m_client = InitTestClient<
           Azure::Security::KeyVault::Certificates::CertificateClient,
           Azure::Security::KeyVault::Certificates::CertificateClientOptions>(
-          m_keyVaultUrl, &m_credential, options);
+          m_keyVaultUrl, m_credential, options);
 
       // Update default time depending on test mode.
       UpdateWaitingTime(m_defaultWait);
     }
 
   public:
+    // Reads the current test instance name.
+    // Name gets also sanitized (special chars are removed) to avoid issues when recording or
+    // creating. This also return the name with suffix if the "AZURE_LIVE_TEST_SUFFIX" exists.
+    std::string GetTestName(bool sanitize = true)
+    {
+      return Azure::Core::Test::TestBase::GetTestNameSuffix(sanitize);
+    }
+
     template <class T>
     static inline void CheckValidResponse(
         Azure::Response<T>& response,
@@ -176,7 +184,13 @@ namespace Azure {
       options.Policy.LifetimeActions.emplace_back(action);
 
       auto response = client.StartCreateCertificate(name, options);
-      auto result = response.PollUntilDone(defaultWait);
+      auto pollResult = response.PollUntilDone(defaultWait);
+      EXPECT_EQ(pollResult.Value.Name, name);
+      EXPECT_TRUE(pollResult.Value.Status.HasValue());
+      EXPECT_EQ(pollResult.Value.Status.Value(), "completed");
+      EXPECT_EQ(pollResult.RawResponse->GetStatusCode(), Azure::Core::Http::HttpStatusCode::Ok);
+      // get the certificate
+      auto result = client.GetCertificate(name);
 
       EXPECT_EQ(result.Value.Name(), options.Properties.Name);
       EXPECT_EQ(result.Value.Properties.Name, options.Properties.Name);

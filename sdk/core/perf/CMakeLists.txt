@@ -28,6 +28,7 @@ set(
 set(
   AZURE_PERFORMANCE_SOURCE
   src/arg_parser.cpp
+  src/base_test.cpp
   src/options.cpp
   src/program.cpp
   src/random_stream.cpp
@@ -50,6 +51,7 @@ endif()
 # make sure that users can consume the project as a library.
 add_library (Azure::Perf ALIAS azure-perf)
 target_link_libraries(azure-perf PUBLIC azure-core)
+create_map_file(azure-perf azure-perf.map)
 
 set_target_properties(azure-perf PROPERTIES FOLDER "Core")
 

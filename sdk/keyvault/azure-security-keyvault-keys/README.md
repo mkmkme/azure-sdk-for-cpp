@@ -217,10 +217,10 @@ The following section provides several code snippets using the `client` [created
 - [Update an existing key](#update-an-existing-key)
 - [Delete a key](#delete-a-key)
 - [Delete and purge a key](#delete-and-purge-a-key)
-- [List keys](#list-keys)
+- [List Keys](#list-keys)
 <!-- - [Encrypt and Decrypt](#encrypt-and-decrypt) -->
 
-### Create a key
+#### Create a key
 
 Create a key to be stored in the Azure Key Vault. If a key with the same name already exists, then a new version of the key is created.
 
@@ -249,7 +249,7 @@ std::cout << ecKey.Name();
 std::cout << ecKey.KeyType.ToString();
 ```
 
-### Retrieve a key
+#### Retrieve a key
 
 `GetKey` retrieves a key previously stored in the Azure Key Vault.
 
@@ -260,7 +260,7 @@ std::cout << key.Name();
 std::cout << key.KeyType.ToString();
 ```
 
-### Update an existing key
+#### Update an existing key
 
 `UpdateKeyProperties` updates a key previously stored in the Azure Key Vault.
 
@@ -277,11 +277,11 @@ std::cout << updatedKey.Properties.Version;
 std::cout << updatedKey.Properties.UpdatedOn->ToString();
 ```
 
-### Delete a key
+#### Delete a key
 
 `StartDeleteKey` starts a long-running operation to delete a key previously stored in the Azure Key Vault.
 You can retrieve the key immediately without waiting for the operation to complete.
-When [soft-delete][soft_delete] is not enabled for the Azure Key Vault, this operation permanently deletes the key.
+When [soft-delete](https://docs.microsoft.com/azure/key-vault/general/soft-delete-overview) is not enabled for the Azure Key Vault, this operation permanently deletes the key.
 
 ```cpp
 DeleteKeyOperation operation = client.StartDeleteKey("key-name");
@@ -291,7 +291,7 @@ std::cout << key.Name();
 std::cout << key.DeletedOn->ToString();
 ```
 
-### Delete and purge a key
+#### Delete and purge a key
 
 You will need to wait for the long-running operation to complete before trying to purge or recover the key.
 
@@ -310,7 +310,7 @@ DeletedKey key = operation.Value();
 client.PurgeDeletedKey(key.Name());
 ```
 
-### List Keys
+#### List Keys
 
 This example lists all the keys in the specified Azure Key Vault.
 
@@ -325,20 +325,6 @@ for (auto keys = client.GetPropertiesOfKeys(); keys.HasPage(); keys.MoveToNextPa
       }
     }
 ```
-
-<!-- ### Encrypt and Decrypt
-
-This example creates a `CryptographyClient` and uses it to encrypt and decrypt with a key in Azure Key Vault.
-
-```cpp
-byte[] plaintext = Encoding.UTF8.GetBytes("A single block of plaintext");
-
-// encrypt the data using the algorithm RSAOAEP
-EncryptResult encryptResult = cryptoClient.Encrypt(EncryptionAlgorithm.RsaOaep, plaintext);
-
-// decrypt the encrypted data.
-DecryptResult decryptResult = cryptoClient.Decrypt(EncryptionAlgorithm.RsaOaep, encryptResult.Ciphertext);
-``` -->
 
 ## Troubleshooting
 
@@ -390,18 +376,18 @@ Headers:
 
 Several Azure Key Vault keys client library samples are available to you in this GitHub repository. These samples provide example code for additional scenarios commonly encountered while working with Azure Key Vault:
 
-- [Sample1_HelloWorld.md][hello_world_sample] - for working with Azure Key Vault, including:
+- [sample1_hello_world.md][hello_world_sample] - for working with Azure Key Vault, including:
 
   - Create a key
   - Get an existing key
   - Update an existing key
   - Delete a key
 
-- [Sample2_BackupAndRestore.md][backup_and_restore_sample] - Contains the code snippets working with Azure Key Vault keys, including:
+- [sample2_backup_and_restore.md][backup_and_restore_sample] - Contains the code snippets working with Azure Key Vault keys, including:
 
   - Backup and recover a key
 
-- [Sample3_GetKeys.md][get_keys_sample] - Example code for working with Azure Key Vault keys, including:
+- [sample3_get_keys.md][get_keys_sample] - Example code for working with Azure Key Vault keys, including:
 
   - Create keys
   - List all keys in the Key Vault
@@ -410,17 +396,22 @@ Several Azure Key Vault keys client library samples are available to you in this
   - Delete keys from the Key Vault
   - List deleted keys in the Key Vault
 
-<!-- - [Sample4_EncryptDecrypt.md][encrypt_decrypt_sample] - Example code for performing cryptographic operations with Azure Key Vault keys, including:
+- [sample4_encrypt_decrypt.md][encrypt_decrypt_sample] - Example code for performing cryptographic operations with Azure Key Vault keys, including:
 
   - Encrypt and Decrypt data with the CryptographyClient
 
-- [Sample5_SignVerify.md][sign_verify_sample] - Example code for working with Azure Key Vault keys, including:
+- [sample5_sign_verify.md][sign_verify_sample] - Example code for working with Azure Key Vault keys, including:
 
   - Sign a precalculated digest and verify the signature with Sign and Verify
   - Sign raw data and verify the signature with SignData and VerifyData
 
-- [Sample6_WrapUnwrap.md][wrap_unwrap_sample] - Example code for working with Azure Key Vault keys, including:
-  - Wrap and Unwrap a symmetric key -->
+- [sample6_wrap_unwrap.md][wrap_unwrap_sample] - Example code for working with Azure Key Vault keys, including:
+  - Wrap and Unwrap a symmetric key 
+
+- [sample7_key_rotation.md][key_rotation_sample] - Example code for working with Azure Key Vault keys, including:
+  - Define Rotation policy
+  - Apply rotation policy
+  - Rotate key
 
 ### Additional Documentation
 
@@ -433,7 +424,7 @@ Several Azure Key Vault keys client library samples are available to you in this
 See the [CONTRIBUTING.md][contributing] for details on building, testing, and contributing to these libraries.
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA)
-declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
+declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit the [Contributor License Agreement](https://cla.microsoft.com).
 
 When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment).
 Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
@@ -448,15 +439,19 @@ For more information see the [Code of Conduct FAQ][coc_faq] or contact opencode@
 [azure_cli]: https://docs.microsoft.com/cli/azure
 [azure_identity]: https://github.com/Azure/azure-sdk-for-cpp/tree/main/sdk/identity/azure-identity
 [azure_sub]: https://azure.microsoft.com/free/
+<!-- ----------------SAMPLES ---------------- -->
+[hello_world_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample1_hello_world.md
 [backup_and_restore_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample2_backup_and_restore.md
 [code_of_conduct]: https://opensource.microsoft.com/codeofconduct/
 [get_keys_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample3_get_keys.md
+[encrypt_decrypt_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample4_encrypt_decrypt.md
+[sign_verify_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample5_sign_verify.md
+[wrap_unwrap_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample6_wrap_unwrap.md
+[key_rotation_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample7_key_rotation.md
 
-<!-- [encrypt_decrypt_sample]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/keyvault/Azure.Security.KeyVault.Keys/samples/Sample4_EncryptDecrypt.md -->
-<!-- [sign_verify_sample]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/keyvault/Azure.Security.KeyVault.Keys/samples/Sample5_SignVerify.md -->
-<!-- [wrap_unwrap_sample]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/keyvault/Azure.Security.KeyVault.Keys/samples/Sample6_WrapUnwrap.md -->
+<!-- ----------------SAMPLES ---------------- -->
 
-[hello_world_sample]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/samples/sample1_hello_world.md
+
 [key_client_class]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/inc/azure/keyvault/keys/key_client.hpp
 [crypto_client_class]: https://github.com/Azure/azure-sdk-for-cpp/blob/main/sdk/keyvault/azure-security-keyvault-keys/src/cryptography/cryptography_client.cpp
 [key_client_vcpkg_package]: https://github.com/microsoft/vcpkg/tree/master/ports/azure-security-keyvault-keys-cpp
