@@ -5,7 +5,6 @@
 
 #include "azure/core/url.hpp"
 
-#include <regex>
 #include <sstream>
 
 namespace {
