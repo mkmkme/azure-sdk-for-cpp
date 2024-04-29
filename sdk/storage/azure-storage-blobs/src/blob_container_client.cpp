@@ -111,6 +111,8 @@ namespace Azure { namespace Storage { namespace Blobs {
         _detail::PackageVersion::ToString(),
         std::move(perRetryPolicies),
         std::move(perOperationPolicies));
+
+    m_clickhouseOptions = options.ClickhouseOptions;
   }
 
   BlobClient BlobContainerClient::GetBlobClient(const std::string& blobName) const
@@ -388,4 +390,13 @@ namespace Azure { namespace Storage { namespace Blobs {
         std::move(blockBlobClient), std::move(response.RawResponse));
   }
 
+  const ClickhouseClientOptions & BlobContainerClient::GetClickhouseOptions() const
+  {
+    return m_clickhouseOptions;
+  }
+
+  void BlobContainerClient::SetClickhouseOptions(ClickhouseClientOptions options)
+  {
+    m_clickhouseOptions = std::move(options);
+  }
 }}} // namespace Azure::Storage::Blobs
