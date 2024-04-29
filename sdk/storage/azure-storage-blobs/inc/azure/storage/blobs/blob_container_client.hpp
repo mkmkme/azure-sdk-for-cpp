@@ -326,6 +326,9 @@ namespace Azure { namespace Storage { namespace Blobs {
         const SubmitBlobBatchOptions& options = SubmitBlobBatchOptions(),
         const Core::Context& context = Core::Context()) const;
 
+    const ClickhouseClientOptions & GetClickhouseOptions() const;
+    void SetClickhouseOptions(ClickhouseClientOptions options);
+
   private:
     Azure::Core::Url m_blobContainerUrl;
     std::shared_ptr<Azure::Core::Http::_internal::HttpPipeline> m_pipeline;
@@ -334,6 +337,8 @@ namespace Azure { namespace Storage { namespace Blobs {
 
     std::shared_ptr<Azure::Core::Http::_internal::HttpPipeline> m_batchRequestPipeline;
     std::shared_ptr<Azure::Core::Http::_internal::HttpPipeline> m_batchSubrequestPipeline;
+
+    ClickhouseClientOptions m_clickhouseOptions;
 
     friend class BlobServiceClient;
     friend class BlobLeaseClient;
