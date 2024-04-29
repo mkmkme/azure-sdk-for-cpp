@@ -284,10 +284,6 @@ namespace Azure { namespace Storage { namespace Blobs {
         const UploadBlockBlobOptions& options = UploadBlockBlobOptions(),
         const Azure::Core::Context& context = Azure::Core::Context()) const;
 
-
-    const ClickhouseClientOptions & GetClickhouseOptions() const;
-    void SetClickhouseOptions(ClickhouseClientOptions options);
-
   private:
     Azure::Core::Url m_blobContainerUrl;
     std::shared_ptr<Azure::Core::Http::_internal::HttpPipeline> m_pipeline;
@@ -304,8 +300,6 @@ namespace Azure { namespace Storage { namespace Blobs {
           m_encryptionScope(std::move(encryptionScope))
     {
     }
-
-    ClickhouseClientOptions m_clickhouseOptions;
 
     friend class BlobServiceClient;
     friend class BlobLeaseClient;
