@@ -129,6 +129,14 @@ namespace Azure { namespace Storage { namespace Blobs {
   };
 
   /**
+   * @brief Wrapper for a clickhouse speciefic options for the Azure client.
+   */
+  struct ClickhouseClientOptions
+  {
+    bool IsClientForDisk = false;
+  };
+
+  /**
    * @brief Client options used to initialize all kinds of blob clients.
    */
   struct BlobClientOptions final : Azure::Core::_internal::ClientOptions
@@ -156,6 +164,8 @@ namespace Azure { namespace Storage { namespace Blobs {
      * API version used by this client.
      */
     std::string ApiVersion = _detail::ApiVersion;
+
+    ClickhouseClientOptions ClickhouseOptions = {};
   };
 
   /**
