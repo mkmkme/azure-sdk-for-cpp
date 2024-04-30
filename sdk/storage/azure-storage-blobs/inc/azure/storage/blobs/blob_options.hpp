@@ -218,6 +218,8 @@ namespace Azure { namespace Storage { namespace Blobs {
      * not set.
      */
     Azure::Nullable<BlobAudience> Audience;
+
+    ClickhouseClientOptions ClickhouseOptions = {};
   };
 
   /**
