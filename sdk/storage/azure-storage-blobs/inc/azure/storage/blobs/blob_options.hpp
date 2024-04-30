@@ -164,6 +164,8 @@ namespace Azure { namespace Storage { namespace Blobs {
      * API version used by this client.
      */
     std::string ApiVersion = _detail::ApiVersion;
+
+    ClickhouseClientOptions ClickhouseOptions = {};
   };
 
   /**
