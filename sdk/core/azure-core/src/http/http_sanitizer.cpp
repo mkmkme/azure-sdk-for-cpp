@@ -6,6 +6,7 @@
 #include "azure/core/url.hpp"
 
 #include <sstream>
+#include <iterator>
 
 namespace {
 std::string const RedactedPlaceholder = "REDACTED";
