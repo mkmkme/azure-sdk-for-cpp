@@ -1262,8 +1262,18 @@ std::unique_ptr<CurlNetworkConnection> CurlConnectionPool::ExtractOrCreateCurlCo
 {
   uint16_t port = request.GetUrl().GetPort();
   // Generate a display name for the host being connected to
-  std::string const& hostDisplayName = request.GetUrl().GetScheme() + "://"
-      + request.GetUrl().GetHost() + (port != 0 ? ":" + std::to_string(port) : "");
+  std::string hostDisplayName;
+  const std::string& url_host = request.GetUrl().GetHost();
+  if (url_host.find(':') != std::string::npos)
+  {
+    hostDisplayName = request.GetUrl().GetScheme() + "://[" + url_host + "]"
+        + (port != 0 ? ":" + std::to_string(port) : "");
+  }
+  else
+  {
+    hostDisplayName = request.GetUrl().GetScheme() + "://" + request.GetUrl().GetHost()
+        + (port != 0 ? ":" + std::to_string(port) : "");
+  }
   std::string const connectionKey = GetConnectionKey(hostDisplayName, options);
 
   {

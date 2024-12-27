@@ -29,10 +29,20 @@ Url::Url(const std::string& url)
     pos = url.begin() + schemeIter + schemeEnd.length();
   }
 
-  auto hostIter
-      = std::find_if(pos, url.end(), [](char c) { return c == '/' || c == '?' || c == ':'; });
-  m_host = std::string(pos, hostIter);
-  pos = hostIter;
+  if (pos != url.end() && *pos == '[')
+  {
+    ++pos;
+    auto hostIter = std::find(pos, url.end(), ']');
+    m_host = std::string(pos, hostIter);
+    pos = hostIter + 1;
+  }
+  else
+  {
+    auto hostIter
+        = std::find_if(pos, url.end(), [](char c) { return c == '/' || c == '?' || c == ':'; });
+    m_host = std::string(pos, hostIter);
+    pos = hostIter;
+  }
 
   if (pos != url.end() && *pos == ':')
   {
@@ -188,7 +198,16 @@ std::string Url::GetUrlWithoutQuery(bool relative) const
     {
       url += m_scheme + "://";
     }
+    bool is_ipv6 = m_host.find(':') != std::string::npos;
+    if (is_ipv6)
+    {
+      url += '[';
+    }
     url += m_host;
+    if (is_ipv6)
+    {
+      url += ']';
+    }
     if (m_port != 0)
     {
       url += ":" + std::to_string(m_port);
